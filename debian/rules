@@ -1,0 +1,18 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+# Uncomment this to turn on verbose mode.
+# export DH_VERBOSE=1
+
+export PYBUILD_TEST_ARGS=-Wignore
+
+# The launchpad build environment sets V=1 in the
+# environment by default, which conflicts with
+# this package's tests (LP: #1981341).
+undefine V
+
+%:
+	dh $@ --buildsystem=pybuild
+
+override_dh_installexamples:
+	dh_installexamples docs/examples/*

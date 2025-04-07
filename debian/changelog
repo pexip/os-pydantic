@@ -1,0 +1,270 @@
+pydantic (2.10.6-2) unstable; urgency=medium
+
+  * Adjust test for rust-url 2.5.4 (closes: #1102283).
+
+ -- Colin Watson <cjwatson@debian.org>  Mon, 07 Apr 2025 10:19:19 +0100
+
+pydantic (2.10.6-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Colin Watson <cjwatson@debian.org>  Mon, 27 Jan 2025 19:54:04 +0000
+
+pydantic (2.10.5-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Colin Watson <cjwatson@debian.org>  Sun, 12 Jan 2025 18:04:04 +0000
+
+pydantic (2.10.4-2) unstable; urgency=medium
+
+  * Drop unnecessary Build-Depends: python3-pytest-codspeed.
+
+ -- Colin Watson <cjwatson@debian.org>  Fri, 20 Dec 2024 10:33:16 +0000
+
+pydantic (2.10.4-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Colin Watson <cjwatson@debian.org>  Wed, 18 Dec 2024 23:19:15 +0000
+
+pydantic (2.10.3-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Add myself to Uploaders.
+
+ -- Colin Watson <cjwatson@debian.org>  Wed, 04 Dec 2024 09:56:23 +0000
+
+pydantic (2.10.2-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+
+ -- Colin Watson <cjwatson@debian.org>  Fri, 29 Nov 2024 00:17:57 +0000
+
+pydantic (2.10.1-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+
+ -- Colin Watson <cjwatson@debian.org>  Sun, 24 Nov 2024 16:20:06 +0000
+
+pydantic (2.9.2-2) unstable; urgency=medium
+
+  * Team upload.
+  * Drop patch that relaxed the pydantic-core dependency.  We shouldn't do
+    this in general, as it isn't always accurate; instead we should apply
+    targeted relaxations when we need them and have tested them.  Tighten
+    (build-)dependencies to match.
+  * Remove some manual dependencies now that dh-python gets them right.
+  * Run more tests that were previously deselected by the packaging.
+
+ -- Colin Watson <cjwatson@debian.org>  Sun, 27 Oct 2024 11:34:36 +0000
+
+pydantic (2.9.2-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+
+ -- Colin Watson <cjwatson@debian.org>  Sun, 29 Sep 2024 16:23:21 +0100
+
+pydantic (2.9.1-2) unstable; urgency=medium
+
+  * Team upload.
+  * Breaks: python3-pydantic-settings (<< 2.5.0).
+
+ -- Colin Watson <cjwatson@debian.org>  Fri, 13 Sep 2024 10:43:37 +0100
+
+pydantic (2.9.1-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+
+ -- Colin Watson <cjwatson@debian.org>  Fri, 13 Sep 2024 00:28:39 +0100
+
+pydantic (2.8.2-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+
+ -- Colin Watson <cjwatson@debian.org>  Sat, 07 Sep 2024 22:00:35 +0100
+
+pydantic (2.4.2-3) unstable; urgency=medium
+
+  * Team upload.
+  * pydantic 2 transition: python3-pydantic Breaks:
+    python3-dirty-equals (<< 0.8~),
+    python3-djantic (<< 0.7.0-5~),
+    python3-maison (<< 2~)
+    Closes: #1080179.
+
+ -- Drew Parsons <dparsons@debian.org>  Sat, 31 Aug 2024 11:32:59 +0200
+
+pydantic (2.4.2-2) unstable; urgency=medium
+
+  * Team Upload.
+  * Add a patch to relax the dependency on pydantic-core.
+    That would previously cause problems in other packages
+    using pkg_resources to resolve their dependencies.
+
+ -- Alexandre Detiste <tchet@debian.org>  Wed, 21 Aug 2024 18:03:04 +0200
+
+pydantic (2.4.2-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream version 2.4.2 (Closes: #1052028, #1066750)
+  * Remove patch applied upstream
+  * Add new build-dependencies:
+    * pybuild-plugin-pyproject
+    * python3-annotated-types
+    * python3-dirty-equals
+    * python3-fake-factory
+    * python3-hatch-fancy-pypi-readme
+    * python3-pydantic-core
+
+  [ Andreas Tille ]
+  * Make DPT maintainer
+  * Depends: python3-email-validator
+    Closes: #1065082
+
+ -- Alexandre Detiste <tchet@debian.org>  Sat, 20 Jul 2024 14:40:50 +0200
+
+pydantic (1.10.17-1) unstable; urgency=medium
+
+  * New upstream version 1.10.17
+  * Drop upstreamed patch
+  * Drop debian/gitlab-ci.yml
+  * Use python3-pydantic.examples to install examples
+  * Fix `test_assert_raises_validation_error` with pytest-8 (#8995) (#9024)
+    (Closes: #1066750)
+  * Fix d/watch
+
+ -- Jochen Sprickerhof <jspricke@debian.org>  Mon, 24 Jun 2024 10:37:45 +0200
+
+pydantic (1.10.14-1) unstable; urgency=medium
+
+  * Team upload
+
+  [ Matthias Klose ]
+  * Update watch file for unconstrained version.
+
+  [ Andreas Tille ]
+  * New upstream version of 1.10 series
+    Closes: #1058324
+  * Build-Depends: s/dh-python/dh-sequence-python3/
+  * Add upstream metadata
+  * Architecture: any
+
+ -- Andreas Tille <tille@debian.org>  Wed, 07 Feb 2024 21:19:27 +0100
+
+pydantic (1.10.13-0.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * New upstream release.
+
+  [ Nick Rosbrook ]
+  * debian/rules: undefine V environment variable to avoid breaking unit test
+    assumptions (LP: #1981341).
+
+  [ James Page ]
+  * d/control: Enable pybuild autopackagetest.
+  * d/p/py3.12-skiptest.patch: Skip tests which are incompatible with
+    Python >= 3.12.
+
+  [ Matthias Klose ]
+  * Update watch file for latest 1.x version.
+  * Build-depend on cython3-legacy.
+  * Bump standards version.
+
+ -- Matthias Klose <doko@debian.org>  Sun, 14 Jan 2024 12:26:11 +0100
+
+pydantic (1.10.4-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+
+ -- Felix Geyer <fgeyer@debian.org>  Sun, 22 Jan 2023 11:40:15 +0100
+
+pydantic (1.10.2-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+  * Fix watch file to adapt to GitHub changes.
+
+ -- Felix Geyer <fgeyer@debian.org>  Mon, 14 Nov 2022 18:53:37 +0100
+
+pydantic (1.9.0-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream version
+    Closes: #1002387
+  * Standards-Version: 4.6.0
+  * debhelper-compat 13 (routine-update)
+  * Drop ancient X-Python-Version field (routine-update)
+  * Rules-Requires-Root: no (routine-update)
+
+ -- Andreas Tille <tille@debian.org>  Fri, 31 Dec 2021 20:46:57 +0100
+
+pydantic (1.8.2-1) unstable; urgency=medium
+
+  * New upstream release; Closes: #992891
+  * debian/copyright
+    - update upstream copyright notice
+  * debian/control
+    - add dotenv, email-validator, typing-extensions to b-d, needed for tests
+
+ -- Sandro Tosi <morph@debian.org>  Tue, 05 Oct 2021 22:41:20 -0400
+
+pydantic (1.7.4-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream point release.
+    - Fixes CVE-2021-29510: Date and datetime parsing could cause an infinite
+      loop by passing either 'infinity' or float('inf') (Closes: #988480)
+  * Update watch file to version 4 with current uscan(1) recommended regex.
+
+ -- Stefano Rivera <stefanor@debian.org>  Fri, 21 May 2021 16:05:17 -0400
+
+pydantic (1.7.3-1) unstable; urgency=medium
+
+  [ Sandro Tosi ]
+  * New upstream release; Closes: #977934, #977077
+  * Add DPT to Uploaders; Closes: #977933
+  * debian/patches
+    - drop, no longer needed
+  * debian/control
+    - add pytest-mock (and nocheck profile) to b-d, needed for tests
+    - bump Standards-Version to 4.5.1 (no changes needed)
+  * debian/rules
+    - install examples
+
+ -- Sandro Tosi <morph@debian.org>  Fri, 08 Jan 2021 02:31:43 -0500
+
+pydantic (1.2-2) unstable; urgency=medium
+
+  [ Ondřej Nový ]
+  * d/control: Update Vcs-* fields with new Debian Python Team Salsa
+    layout.
+
+  [ Michael Banck ]
+  * debian/patches/python3.9-support.patch: New patch, add support for
+    python3.9, adapted from upstream commit 794d0bcc (Closes: #971918).
+
+ -- Michael Banck <mbanck@debian.org>  Thu, 22 Oct 2020 22:25:54 +0200
+
+pydantic (1.2-1) unstable; urgency=low
+
+  * Non-maintainer upload (lowNMU)
+  * New upstream version 1.2 (Closes: #940156, #946409)
+  * Add dh-python build dependency
+  * Push Standards-Version to 4.4.1. No changes required
+  * Replace d/compat by debhelper-compat virtual package build dependency
+  * Add Vcs- fields for Salsa (Closes: #946411)
+
+ -- Ole Streicher <olebole@debian.org>  Sun, 08 Dec 2019 20:30:21 +0100
+
+pydantic (0.30.1-1) unstable; urgency=medium
+
+  * Initial release.
+
+ -- Michael Banck <mbanck@debian.org>  Sat, 20 Jul 2019 20:11:08 -0300
