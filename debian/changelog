@@ -1,4 +1,4 @@
-pydantic (2.10.6-2+pexip24u1) pexip; urgency=medium
+pydantic (2.10.6-2+pexip25u1) pexip-trixie; urgency=medium
 
   * Prepare Pexip packaging
 
