@@ -11,9 +11,9 @@ There are a few cases where `model_validate(json.loads(...))` may be faster. Spe
 on a model, validation may be faster with the two step method. You can read more about these special cases in
 [this discussion](https://github.com/pydantic/pydantic/discussions/6388#discussioncomment-8193105).
 
-Many performance improvements are currently in the works for `pydantic-core`, as discussed
-[here](https://github.com/pydantic/pydantic/discussions/6388#discussioncomment-8194048). Once these changes are merged, we should be at
-the point where `model_validate_json()` is always faster than `model_validate(json.loads(...))`.
+Many performance improvements are currently in the works for `pydantic-core`, see
+[this discussion](https://github.com/pydantic/pydantic/discussions/6388#discussioncomment-8194048).
+Once these changes are merged, we should be at the point where `model_validate_json()` is always faster than `model_validate(json.loads(...))`.
 
 ## `TypeAdapter` instantiated once
 
@@ -24,31 +24,27 @@ the function is called. Instead, instantiate it once, and reuse it.
 === ":x: Bad"
 
     ```python {lint="skip"}
-    from typing import List
-
     from pydantic import TypeAdapter
 
 
     def my_func():
-        adapter = TypeAdapter(List[int])
+        adapter = TypeAdapter(list[int])
         # do something with adapter
     ```
 
 === ":white_check_mark: Good"
 
     ```python {lint="skip"}
-    from typing import List
-
     from pydantic import TypeAdapter
 
-    adapter = TypeAdapter(List[int])
+    adapter = TypeAdapter(list[int])
 
     def my_func():
         ...
         # do something with adapter
     ```
 
-## `Sequence` vs `list` or `tuple` - `Mapping` vs `dict`
+## `Sequence` vs `list` or `tuple` with `Mapping` vs `dict`
 
 When using `Sequence`, Pydantic calls `isinstance(value, Sequence)` to check if the value is a sequence.
 Also, Pydantic will try to validate against different types of sequences, like `list` and `tuple`.
@@ -57,7 +53,7 @@ If you know the value is a `list` or `tuple`, use `list` or `tuple` instead of `
 The same applies to `Mapping` and `dict`.
 If you know the value is a `dict`, use `dict` instead of `Mapping`.
 
-## Don't do validation when you don't have to - use `Any` to keep the value unchanged
+## Don't do validation when you don't have to, use `Any` to keep the value unchanged
 
 If you don't need to validate a value, use `Any` to keep the value unchanged.
 
@@ -194,13 +190,11 @@ If you use this annotation, you won't get validation errors for the rest of the 
 trading off visibility for performance.
 
 ```python
-from typing import List
-
-from typing_extensions import Annotated
+from typing import Annotated
 
 from pydantic import FailFast, TypeAdapter, ValidationError
 
-ta = TypeAdapter(Annotated[List[bool], FailFast()])
+ta = TypeAdapter(Annotated[list[bool], FailFast()])
 try:
     ta.validate_python([True, 'invalid', False, 'also invalid'])
 except ValidationError as exc:

@@ -17,7 +17,6 @@ Here's an example of Pydantic's builtin JSON parsing via the [`model_validate_js
 
 ```python
 from datetime import date
-from typing import Tuple
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -26,7 +25,7 @@ class Event(BaseModel):
     model_config = ConfigDict(strict=True)
 
     when: date
-    where: Tuple[int, int]
+    where: tuple[int, int]
 
 
 json_data = '{"when": "1987-01-28", "where": [51, -1]}'
@@ -94,7 +93,7 @@ print(dog_dict)
 
 !!! tip "Validating LLM Output"
     This feature is particularly beneficial for validating LLM outputs.
-    We've written some blog posts about this topic, which you can find [here](https://pydantic.dev/articles).
+    We've written some blog posts about this topic, which you can find on [our website](https://pydantic.dev/articles).
 
 In future versions of Pydantic, we expect to expand support for this feature through either Pydantic's other JSON validation functions
 ([`pydantic.main.BaseModel.model_validate_json`][pydantic.main.BaseModel.model_validate_json] and
@@ -128,10 +127,9 @@ Check out the following example for a more in-depth look at how to use default v
 !!! example "Using default values with partial JSON parsing"
 
     ```python
-    from typing import Any, Optional, Tuple
+    from typing import Annotated, Any, Optional
 
     import pydantic_core
-    from typing_extensions import Annotated
 
     from pydantic import BaseModel, ValidationError, WrapValidator
 
@@ -162,7 +160,7 @@ Check out the following example for a more in-depth look at how to use default v
     class MyModel(BaseModel):
         foo: Optional[str] = None
         bar: Annotated[
-            Optional[Tuple[str, int]], WrapValidator(default_on_error)
+            Optional[tuple[str, int]], WrapValidator(default_on_error)
         ] = None
         nested: Annotated[
             Optional[NestedModel], WrapValidator(default_on_error)
@@ -206,7 +204,6 @@ Using the string caching feature results in performance improvements, but increa
     3. There is some overhead to looking up the cache, which is normally worth it to avoid constructing strings.
     However, if you know there will be very few repeated strings in your data, you might get a performance boost by disabling this setting with `cache_strings=False`.
 
-
 ## JSON Serialization
 
 ??? api "API Documentation"
@@ -214,4 +211,4 @@ Using the string caching feature results in performance improvements, but increa
     [`pydantic.type_adapter.TypeAdapter.dump_json`][pydantic.type_adapter.TypeAdapter.dump_json]<br>
     [`pydantic_core.to_json`][pydantic_core.to_json]<br>
 
-For more information on JSON serialization, see the [Serialization Concepts](./serialization.md#modelmodel_dump_json) page.
+For more information on JSON serialization, see the [serialization concepts](./serialization.md) page.

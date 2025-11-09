@@ -4,16 +4,16 @@ Subject: dumb patch to disable not runnable tests
 
 Forwarded: no please
 ---
- tests/test_docs.py | 269 -----------------------------------------------------
- 1 file changed, 269 deletions(-)
+ tests/test_docs.py | 288 -----------------------------------------------------
+ 1 file changed, 288 deletions(-)
  delete mode 100644 tests/test_docs.py
 
 diff --git a/tests/test_docs.py b/tests/test_docs.py
 deleted file mode 100644
-index fd98a92..0000000
+index dabd370..0000000
 --- a/tests/test_docs.py
 +++ /dev/null
-@@ -1,269 +0,0 @@
+@@ -1,288 +0,0 @@
 -from __future__ import annotations as _annotations
 -
 -import os
@@ -88,6 +88,7 @@ index fd98a92..0000000
 -
 -skip_reason = skip_docs_tests()
 -LINE_LENGTH = 80
+-TARGET_VERSION = 'py39'
 -
 -
 -def print_callback(print_statement: str) -> str:
@@ -111,11 +112,23 @@ index fd98a92..0000000
 -
 -    group_name = prefix_settings.get('group')
 -
--    eval_example.set_config(ruff_ignore=['D', 'T', 'B', 'C4', 'E721', 'Q001'], line_length=LINE_LENGTH)
+-    eval_example.set_config(
+-        ruff_ignore=['D', 'T', 'B', 'C4', 'E721', 'Q001', 'PERF', 'PIE790'],
+-        line_length=LINE_LENGTH,
+-        target_version=TARGET_VERSION,
+-    )
 -    if '# ignore-above' in example.source:
--        eval_example.set_config(ruff_ignore=eval_example.config.ruff_ignore + ['E402'], line_length=LINE_LENGTH)
+-        eval_example.set_config(
+-            ruff_ignore=eval_example.config.ruff_ignore + ['E402'],
+-            line_length=LINE_LENGTH,
+-            target_version=TARGET_VERSION,
+-        )
 -    if group_name:
--        eval_example.set_config(ruff_ignore=eval_example.config.ruff_ignore + ['F821'], line_length=LINE_LENGTH)
+-        eval_example.set_config(
+-            ruff_ignore=eval_example.config.ruff_ignore + ['F821'],
+-            line_length=LINE_LENGTH,
+-            target_version=TARGET_VERSION,
+-        )
 -
 -    if not lint_settings.startswith('skip'):
 -        if eval_example.update_examples:
@@ -123,7 +136,11 @@ index fd98a92..0000000
 -        else:
 -            if example.in_py_file():
 -                # Ignore isort as double newlines will cause it to fail, but we remove them in py files
--                eval_example.set_config(ruff_ignore=eval_example.config.ruff_ignore + ['I001'], line_length=LINE_LENGTH)
+-                eval_example.set_config(
+-                    ruff_ignore=eval_example.config.ruff_ignore + ['I001'],
+-                    line_length=LINE_LENGTH,
+-                    target_version=TARGET_VERSION,
+-                )
 -            eval_example.lint(example)
 -
 -    if test_settings.startswith('skip'):
@@ -158,6 +175,7 @@ index fd98a92..0000000
 -        group_globals.set(group_name, d2)
 -
 -
+-@pytest.mark.thread_unsafe
 -@pytest.mark.filterwarnings('ignore:(parse_obj_as|schema_json_of|schema_of) is deprecated.*:DeprecationWarning')
 -@pytest.mark.skipif(bool(skip_reason), reason=skip_reason or 'not skipping')
 -@pytest.mark.parametrize('example', find_examples(str(SOURCES_ROOT), skip=sys.platform == 'win32'), ids=str)
@@ -181,8 +199,8 @@ index fd98a92..0000000
 -        os.chdir(cwd)
 -
 -
+-@pytest.mark.thread_unsafe
 -@pytest.mark.filterwarnings('ignore:(parse_obj_as|schema_json_of|schema_of) is deprecated.*:DeprecationWarning')
--@pytest.mark.filterwarnings('ignore::pydantic.warnings.PydanticExperimentalWarning')
 -@pytest.mark.skipif(bool(skip_reason), reason=skip_reason or 'not skipping')
 -@pytest.mark.parametrize('example', find_examples(str(DOCS_ROOT), skip=sys.platform == 'win32'), ids=str)
 -def test_docs_examples(example: CodeExample, eval_example: EvalExample, tmp_path: Path, mocker):
@@ -200,6 +218,7 @@ index fd98a92..0000000
 -    run_example(example, eval_example, mocker)
 -
 -
+-@pytest.mark.thread_unsafe
 -@pytest.mark.skipif(bool(skip_reason), reason=skip_reason or 'not skipping')
 -@pytest.mark.skipif(sys.version_info >= (3, 13), reason='python-devtools does not yet support python 3.13')
 -@pytest.mark.parametrize(
@@ -208,7 +227,7 @@ index fd98a92..0000000
 -def test_docs_devtools_example(example: CodeExample, eval_example: EvalExample, tmp_path: Path):
 -    from ansi2html import Ansi2HTMLConverter
 -
--    eval_example.set_config(ruff_ignore=['D', 'T', 'B', 'C4'], line_length=LINE_LENGTH)
+-    eval_example.set_config(ruff_ignore=['D', 'T', 'B', 'C4'], line_length=LINE_LENGTH, target_version=TARGET_VERSION)
 -
 -    if eval_example.update_examples:
 -        eval_example.format(example)

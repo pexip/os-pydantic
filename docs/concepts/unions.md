@@ -118,9 +118,9 @@ In this mode, pydantic attempts to select the best match for the input from the 
 
     For `exactness`, Pydantic scores a match of a union member into one of the following three groups (from highest score to lowest score):
 
-    - An exact type match, for example an `int` input to a `float | int` union validation is an exact type match for the `int` member
-    - Validation would have succeeded in [`strict` mode](../concepts/strict_mode.md)
-    - Validation would have succeeded in lax mode
+    * An exact type match, for example an `int` input to a `float | int` union validation is an exact type match for the `int` member
+    * Validation would have succeeded in [`strict` mode](../concepts/strict_mode.md)
+    * Validation would have succeeded in lax mode
 
     The union match which produced the highest exactness score will be considered the best match.
 
@@ -137,7 +137,7 @@ In this mode, pydantic attempts to select the best match for the input from the 
     === "All other data types"
 
         1. Union members are attempted left to right, with any successful matches scored into one of the three exactness categories described above.
-            - If validation succeeds with an exact type match, that member is returned immediately and following members will not be attempted.
+            * If validation succeeds with an exact type match, that member is returned immediately and following members will not be attempted.
         2. If validation succeeded on at least one member as a "strict" match, the leftmost of those "strict" matches is returned.
         3. If validation succeeded on at least one member in "lax" mode, the leftmost match is returned.
         4. Validation failed on all the members, return all the errors.
@@ -173,11 +173,6 @@ print(user_03.id)
 print(user_03_uuid.int)
 #> 275603287559914445491632874575877060712
 ```
-
-!!! tip
-    The type `Optional[x]` is a shorthand for `Union[x, None]`.
-
-    See more details in [Required fields](../concepts/models.md#required-fields).
 
 ## Discriminated Unions
 
@@ -262,9 +257,7 @@ This is the perfect use case for a callable `Discriminator`.
     and in the worst case, get runtime errors during validation.
 
 ```python
-from typing import Any, Literal, Union
-
-from typing_extensions import Annotated
+from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, Discriminator, Tag
 
@@ -326,9 +319,7 @@ ThanksgivingDinner(dessert=PumpkinPie(time_to_cook=40, num_ingredients=6, fillin
 For example:
 
 ```python
-from typing import Any, Union
-
-from typing_extensions import Annotated
+from typing import Annotated, Any, Union
 
 from pydantic import BaseModel, Discriminator, Tag, ValidationError
 
@@ -382,19 +373,21 @@ except ValidationError as e:
    When `None` is returned, this `union_tag_not_found` error is raised.
 
 !!! note
-    Using the [[`typing.Annotated`][] fields syntax](../concepts/types.md#composing-types-via-annotated) can be handy to regroup
+    Using the [annotated pattern](./fields.md#the-annotated-pattern) can be handy to regroup
     the `Union` and `discriminator` information. See the next example for more details.
 
     There are a few ways to set a discriminator for a field, all varying slightly in syntax.
 
     For `str` discriminators:
-    ```
-    some_field: Union[...] = Field(discriminator='my_discriminator'
+
+    ```python {lint="skip" test="skip"}
+    some_field: Union[...] = Field(discriminator='my_discriminator')
     some_field: Annotated[Union[...], Field(discriminator='my_discriminator')]
     ```
 
     For callable `Discriminator`s:
-    ```
+
+    ```python {lint="skip" test="skip"}
     some_field: Union[...] = Field(discriminator=Discriminator(...))
     some_field: Annotated[Union[...], Discriminator(...)]
     some_field: Annotated[Union[...], Field(discriminator=Discriminator(...))]
@@ -412,9 +405,7 @@ Only one discriminator can be set for a field but sometimes you want to combine 
 You can do it by creating nested `Annotated` types, e.g.:
 
 ```python
-from typing import Literal, Union
-
-from typing_extensions import Annotated
+from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -498,9 +489,7 @@ You can also customize the error type, message, and context for a `Discriminator
 these specifications as parameters to the `Discriminator` constructor, as seen in the example below.
 
 ```python
-from typing import Union
-
-from typing_extensions import Annotated
+from typing import Annotated, Union
 
 from pydantic import BaseModel, Discriminator, Tag, ValidationError
 
@@ -601,14 +590,12 @@ You can also simplify error messages by labeling each case with a [`Tag`][pydant
 This is especially useful when you have complex types like those in this example:
 
 ```python
-from typing import Dict, List, Union
-
-from typing_extensions import Annotated
+from typing import Annotated, Union
 
 from pydantic import AfterValidator, Tag, TypeAdapter, ValidationError
 
-DoubledList = Annotated[List[int], AfterValidator(lambda x: x * 2)]
-StringsMap = Dict[str, str]
+DoubledList = Annotated[list[int], AfterValidator(lambda x: x * 2)]
+StringsMap = dict[str, str]
 
 
 # Not using any `Tag`s for each union case, the errors are not so nice to look at

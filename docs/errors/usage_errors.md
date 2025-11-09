@@ -99,7 +99,7 @@ and the second a callable `handler` that receives a `CoreSchema` as parameter, a
 below:
 
 ```python {title="New way"}
-from typing import Any, Dict
+from typing import Any
 
 from pydantic_core import CoreSchema
 
@@ -110,7 +110,7 @@ class Model(BaseModel):
     @classmethod
     def __get_pydantic_json_schema__(
         cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         json_schema = super().__get_pydantic_json_schema__(core_schema, handler)
         json_schema = handler.resolve_ref_schema(json_schema)
         json_schema.update(examples=['example'])
@@ -356,9 +356,7 @@ assert Model(pet={'pet_type': 'kitten'}).pet.pet_type == 'cat'
 This error is raised when a `Union` that uses a callable `Discriminator` doesn't have `Tag` annotations for all cases.
 
 ```python
-from typing import Union
-
-from typing_extensions import Annotated
+from typing import Annotated, Union
 
 from pydantic import BaseModel, Discriminator, PydanticUserError, Tag
 
@@ -620,7 +618,7 @@ See the [Migration Guide](../migration.md) for more information.
 
 ## `create_model` field definitions {#create-model-field-definitions}
 
-This error is raised when you provide field definitions input in `create_model` that is not valid.
+This error is raised when you provide invalid field definitions in [`create_model()`][pydantic.create_model].
 
 ```python
 from pydantic import PydanticUserError, create_model
@@ -631,34 +629,7 @@ except PydanticUserError as exc_info:
     assert exc_info.code == 'create-model-field-definitions'
 ```
 
-Or when you use [`typing.Annotated`][] with invalid input
-
-```python
-from typing_extensions import Annotated
-
-from pydantic import PydanticUserError, create_model
-
-try:
-    create_model('FooModel', foo=Annotated[str, 'NotFieldInfoValue'])
-except PydanticUserError as exc_info:
-    assert exc_info.code == 'create-model-field-definitions'
-```
-
-## `create_model` config base {#create-model-config-base}
-
-This error is raised when you use both `__config__` and `__base__` together in `create_model`.
-
-```python
-from pydantic import BaseModel, ConfigDict, PydanticUserError, create_model
-
-try:
-    config = ConfigDict(frozen=True)
-    model = create_model(
-        'FooModel', foo=(int, ...), __config__=config, __base__=BaseModel
-    )
-except PydanticUserError as exc_info:
-    assert exc_info.code == 'create-model-config-base'
-```
+The fields definition syntax can be found in the [dynamic model creation](../concepts/models.md#dynamic-model-creation) documentation.
 
 ## Validator with no fields {#validator-no-fields}
 
@@ -1012,7 +983,7 @@ except PydanticUserError as exc_info:
 This error is raised when an annotation cannot annotate a type.
 
 ```python
-from typing_extensions import Annotated
+from typing import Annotated
 
 from pydantic import BaseModel, FutureDate, PydanticUserError
 
@@ -1129,7 +1100,7 @@ class A:
 
 The above snippet results in the following error during schema building for the `A` dataclass:
 
-```
+```output
 pydantic.errors.PydanticUserError: Field a has `init=False` and dataclass has config setting `extra="allow"`.
 This combination is not allowed.
 ```
@@ -1392,4 +1363,26 @@ try:
 
 except PydanticUserError as exc_info:
     assert exc_info.code == 'invalid-self-type'
+```
+
+## `validate_by_alias` and `validate_by_name` both set to `False` {#validate-by-alias-and-name-false}
+
+This error is raised when you set `validate_by_alias` and `validate_by_name` to `False` in the configuration.
+
+This is not allowed because it would make it impossible to populate attributes.
+
+```python
+from pydantic import BaseModel, ConfigDict, Field, PydanticUserError
+
+try:
+
+    class Model(BaseModel):
+        a: int = Field(alias='A')
+
+        model_config = ConfigDict(
+            validate_by_alias=False, validate_by_name=False
+        )
+
+except PydanticUserError as exc_info:
+    assert exc_info.code == 'validate-by-alias-and-name-false'
 ```

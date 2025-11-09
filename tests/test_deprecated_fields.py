@@ -1,8 +1,7 @@
-import importlib.metadata
+from typing import Annotated
 
 import pytest
-from packaging.version import Version
-from typing_extensions import Annotated, Self, deprecated
+from typing_extensions import Self, deprecated
 
 from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
 
@@ -34,10 +33,6 @@ def test_deprecated_fields():
     assert b == 1
 
 
-@pytest.mark.skipif(
-    Version(importlib.metadata.version('typing_extensions')) < Version('4.9'),
-    reason='`deprecated` type annotation requires typing_extensions>=4.9',
-)
 def test_deprecated_fields_deprecated_class():
     class Model(BaseModel):
         a: Annotated[int, deprecated('')]
@@ -163,10 +158,6 @@ def test_computed_field_deprecated():
     assert p3 == 1
 
 
-@pytest.mark.skipif(
-    Version(importlib.metadata.version('typing_extensions')) < Version('4.9'),
-    reason='`deprecated` type annotation requires typing_extensions>=4.9',
-)
 def test_computed_field_deprecated_deprecated_class():
     class Model(BaseModel):
         @computed_field(deprecated=deprecated('This is deprecated'))
@@ -250,3 +241,30 @@ def test_computed_field_deprecated_subclass() -> None:
 
     class Sub(Base):
         pass
+
+
+def test_deprecated_field_forward_annotation() -> None:
+    """https://github.com/pydantic/pydantic/issues/11390"""
+
+    class Model(BaseModel):
+        a: "Annotated[Test, deprecated('test')]" = 2
+
+    Test = int
+
+    Model.model_rebuild()
+    assert isinstance(Model.model_fields['a'].deprecated, deprecated)
+    assert Model.model_fields['a'].deprecated.message == 'test'
+
+    m = Model()
+
+    pytest.warns(DeprecationWarning, lambda: m.a, match='test')
+
+
+def test_deprecated_field_with_assignment() -> None:
+    class Model(BaseModel):
+        # A buggy implementation made it so that deprecated wouldn't
+        # appear on the `FieldInfo`:
+        a: Annotated[int, deprecated('test')] = Field(default=1)
+
+    assert isinstance(Model.model_fields['a'].deprecated, deprecated)
+    assert Model.model_fields['a'].deprecated.message == 'test'

@@ -2,18 +2,19 @@ import json
 import math
 import re
 import sys
+from collections.abc import Generator
 from dataclasses import dataclass as vanilla_dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from enum import Enum
 from ipaddress import IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, IPv6Network
 from pathlib import Path
-from typing import Any, Generator, List, Optional, Pattern, Union
+from re import Pattern
+from typing import Annotated, Any, Optional, Union
 from uuid import UUID
 
 import pytest
 from pydantic_core import CoreSchema, SchemaSerializer, core_schema
-from typing_extensions import Annotated
 
 from pydantic import (
     AfterValidator,
@@ -24,6 +25,7 @@ from pydantic import (
     NameEmail,
     PlainSerializer,
     RootModel,
+    TypeAdapter,
 )
 from pydantic._internal._config import ConfigWrapper
 from pydantic._internal._generate_schema import GenerateSchema
@@ -34,7 +36,6 @@ from pydantic.functional_serializers import (
     field_serializer,
 )
 from pydantic.json_schema import JsonSchemaValue
-from pydantic.type_adapter import TypeAdapter
 from pydantic.types import DirectoryPath, FilePath, SecretBytes, SecretStr, condecimal
 
 try:
@@ -493,10 +494,10 @@ def test_json_encoders_types() -> None:
 
     class A(BaseModel):
         a: MyEnum
-        b: List[int]
+        b: list[int]
         c: Decimal
         model_config = ConfigDict(
-            json_encoders={Enum: lambda val: val.name, List[int]: lambda val: 'list!', Decimal: lambda val: 'decimal!'}
+            json_encoders={Enum: lambda val: val.name, list[int]: lambda val: 'list!', Decimal: lambda val: 'decimal!'}
         )
 
     m = A(a=MyEnum.A, b=[1, 2, 3], c=Decimal('0'))
@@ -573,3 +574,15 @@ def test_json_bytes_hex_round_trip():
     m_encoded = f'{{"key":{r_encoded}}}'
     assert m.model_dump_json() == m_encoded
     assert M.model_validate_json(m_encoded) == m
+
+
+# Complete tests exist in pydantic-core:
+def test_json_ensure_ascii() -> None:
+    ta = TypeAdapter(str)
+
+    assert ta.dump_json('à', ensure_ascii=True) == b'"\\u00e0"'
+
+    class Model(BaseModel):
+        f: str
+
+    assert Model(f='à').model_dump_json(ensure_ascii=True) == '{"f":"\\u00e0"}'

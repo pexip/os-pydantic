@@ -1,7 +1,6 @@
 import importlib
 import importlib.util
 import json
-import platform
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -29,12 +28,8 @@ def test_public_api_dynamic_imports(attr_name, value):
         assert isinstance(imported_object, object)
 
 
-@pytest.mark.skipif(
-    platform.python_implementation() == 'PyPy' and platform.python_version_tuple() < ('3', '8'),
-    reason='Produces a weird error on pypy<3.8',
-)
+@pytest.mark.thread_unsafe
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
-@pytest.mark.filterwarnings('ignore::pydantic.warnings.PydanticExperimentalWarning')
 def test_public_internal():
     """
     check we don't make anything from _internal public

@@ -1,5 +1,5 @@
 You may have types that are not `BaseModel`s that you want to validate data against.
-Or you may want to validate a `List[SomeModel]`, or dump it to JSON.
+Or you may want to validate a `list[SomeModel]`, or dump it to JSON.
 
 ??? api "API Documentation"
     [`pydantic.type_adapter.TypeAdapter`][pydantic.type_adapter.TypeAdapter]<br>
@@ -13,8 +13,6 @@ A [`TypeAdapter`][pydantic.type_adapter.TypeAdapter] instance exposes some of th
 (such as dataclasses, primitive types, and more):
 
 ```python
-from typing import List
-
 from typing_extensions import TypedDict
 
 from pydantic import TypeAdapter, ValidationError
@@ -25,7 +23,7 @@ class User(TypedDict):
     id: int
 
 
-user_list_adapter = TypeAdapter(List[User])
+user_list_adapter = TypeAdapter(list[User])
 user_list = user_list_adapter.validate_python([{'name': 'Fred', 'id': '3'}])
 print(repr(user_list))
 #> [{'name': 'Fred', 'id': 3}]
@@ -37,7 +35,7 @@ try:
 except ValidationError as e:
     print(e)
     """
-    1 validation error for list[typed-dict]
+    1 validation error for list[User]
     0.id
       Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='wrong', input_type=str]
     """
@@ -68,8 +66,6 @@ This is especially useful when you want to parse results into a type that is not
 [`BaseModel`][pydantic.main.BaseModel]. For example:
 
 ```python
-from typing import List
-
 from pydantic import BaseModel, TypeAdapter
 
 
@@ -82,7 +78,7 @@ class Item(BaseModel):
 # item_data = requests.get('https://my-api.com/items').json()
 item_data = [{'id': 1, 'name': 'My Item'}]
 
-items = TypeAdapter(List[Item]).validate_python(item_data)
+items = TypeAdapter(list[Item]).validate_python(item_data)
 print(items)
 #> [Item(id=1, name='My Item')]
 ```
@@ -94,7 +90,6 @@ handle as fields of a [`BaseModel`][pydantic.main.BaseModel].
     When creating an instance of [`TypeAdapter`][pydantic.type_adapter.TypeAdapter], the provided type must be analyzed and converted into a pydantic-core
     schema. This comes with some non-trivial overhead, so it is recommended to create a `TypeAdapter` for a given type
     just once and reuse it in loops or other performance-critical code.
-
 
 ## Rebuilding a `TypeAdapter`'s schema
 

@@ -92,9 +92,11 @@ handle the raised [`ValidationError`][pydantic_core.ValidationError] without nee
 remaining recursion depth:
 
 ```python
+from __future__ import annotations
+
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import field
-from typing import Iterator, List
 
 from pydantic import BaseModel, ValidationError, field_validator
 
@@ -105,7 +107,7 @@ def is_recursion_validation_error(exc: ValidationError) -> bool:
 
 
 @contextmanager
-def suppress_recursion_validation_error() -> Iterator[None]:
+def suppress_recursion_validation_error() -> Generator[None]:
     try:
         yield
     except ValidationError as exc:
@@ -115,7 +117,7 @@ def suppress_recursion_validation_error() -> Iterator[None]:
 
 class Node(BaseModel):
     id: int
-    children: List['Node'] = field(default_factory=list)
+    children: list[Node] = field(default_factory=list)
 
     @field_validator('children', mode='wrap')
     @classmethod
@@ -144,7 +146,7 @@ print(Node.model_validate(node_data))
 #> id=1 children=[Node(id=2, children=[Node(id=3, children=[])])]
 ```
 
-Similarly, if Pydantic encounters a recursive reference during _serialization_, rather than waiting
+Similarly, if Pydantic encounters a recursive reference during *serialization*, rather than waiting
 for the maximum recursion depth to be exceeded, a [`ValueError`][] is raised immediately:
 
 ```python
@@ -168,7 +170,7 @@ This can also be handled if desired:
 
 ```python
 from dataclasses import field
-from typing import Any, List
+from typing import Any
 
 from pydantic import (
     SerializerFunctionWrapHandler,
@@ -185,11 +187,11 @@ class NodeReference:
 
 @dataclass
 class Node(NodeReference):
-    children: List['Node'] = field(default_factory=list)
+    children: list['Node'] = field(default_factory=list)
 
     @field_serializer('children', mode='wrap')
     def serialize(
-        self, children: List['Node'], handler: SerializerFunctionWrapHandler
+        self, children: list['Node'], handler: SerializerFunctionWrapHandler
     ) -> Any:
         """
         Serialize a list of nodes, handling circular references by excluding the children.
