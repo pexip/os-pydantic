@@ -1,6 +1,7 @@
 pydantic (2.12.4-1+pexip25u1) pexip-trixie; urgency=medium
 
   * New upstream release
+  * Remove test dep on pytest-run-parallel
 
  -- Huw Jones <huw@pexip.com>  Thu, 13 Nov 2025 15:50:06 +0000
 

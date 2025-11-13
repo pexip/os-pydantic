@@ -1,1 +1,2 @@
 pytest_examples_not_yet_packaged.patch
+pexip-pytest-run-parallel.patch

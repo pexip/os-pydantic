@@ -1,0 +1,322 @@
+--- a/tests/test_version.py
++++ b/tests/test_version.py
+@@ -40,7 +40,7 @@
+     assert check_pydantic_core_version()
+ 
+ 
+-@pytest.mark.thread_unsafe(reason='Monkeypatching')
++# @pytest.mark.thread_unsafe(reason='Monkeypatching')
+ @pytest.mark.parametrize('version,expected', (('2.1', '2.1'), ('2.1.0', '2.1')))
+ def test_version_short(version, expected):
+     with patch('pydantic.version.VERSION', version):
+--- a/tests/test_v1.py
++++ b/tests/test_v1.py
+@@ -16,7 +16,7 @@
+ 
+ 
+ @pytest.mark.skipif(sys.version_info >= (3, 14), reason='Python 3.14+ not supported')
+-@pytest.mark.thread_unsafe(reason='Mutates the value')
++# @pytest.mark.thread_unsafe(reason='Mutates the value')
+ def test_root_validator():
+     class Model(V1BaseModel):
+         v: str
+--- a/tests/test_utils.py
++++ b/tests/test_utils.py
+@@ -381,7 +381,7 @@
+         assert smart_deepcopy(empty_collection) is not empty_collection
+ 
+ 
+-@pytest.mark.thread_unsafe(reason='Monkeypatching')
++# @pytest.mark.thread_unsafe(reason='Monkeypatching')
+ @pytest.mark.parametrize(
+     'collection', (c.fromkeys((1,)) if issubclass(c, dict) else c((1,)) for c in BUILTIN_COLLECTIONS)
+ )
+--- a/tests/test_generics.py
++++ b/tests/test_generics.py
+@@ -398,7 +398,7 @@
+     del models
+ 
+ 
+-@pytest.mark.thread_unsafe(reason='GC is flaky')
++# @pytest.mark.thread_unsafe(reason='GC is flaky')
+ @pytest.mark.skipif(platform.python_implementation() == 'PyPy', reason='PyPy does not play nice with PyO3 gc')
+ def test_caches_get_cleaned_up():
+     cache = get_clean_cache()
+@@ -455,7 +455,7 @@
+     assert len(cache) < types_cache_size + _LIMITED_DICT_SIZE
+ 
+ 
+-@pytest.mark.thread_unsafe(reason='GC is flaky')
++# @pytest.mark.thread_unsafe(reason='GC is flaky')
+ @pytest.mark.skipif(platform.python_implementation() == 'PyPy', reason='PyPy does not play nice with PyO3 gc')
+ @pytest.mark.skipif(sys.version_info[:2] == (3, 9), reason='The test randomly fails on Python 3.9')
+ def test_circular_generic_refs_get_cleaned_up():
+@@ -1150,7 +1150,7 @@
+                 _get_caller_frame_info()
+ 
+ 
+-@pytest.mark.thread_unsafe(reason='Deleting built-in functions')
++# @pytest.mark.thread_unsafe(reason='Deleting built-in functions')
+ def test_get_caller_frame_info_when_sys_getframe_undefined():
+     from pydantic._internal._generics import _get_caller_frame_info
+ 
+--- a/tests/test_exports.py
++++ b/tests/test_exports.py
+@@ -28,7 +28,7 @@
+         assert isinstance(imported_object, object)
+ 
+ 
+-@pytest.mark.thread_unsafe
++# @pytest.mark.thread_unsafe
+ @pytest.mark.filterwarnings('ignore::DeprecationWarning')
+ def test_public_internal():
+     """
+--- a/tests/test_construction.py
++++ b/tests/test_construction.py
+@@ -175,7 +175,7 @@
+     assert m._foo_ is not m2._foo_
+ 
+ 
+-@pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe')
++# @pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe')
+ def test_copy_exclude(ModelTwo):
+     m = ModelTwo(a=24, d=Model(a='12'))
+     m2 = deprecated_copy(m, exclude={'b'})
+@@ -192,7 +192,7 @@
+     assert m != m2
+ 
+ 
+-@pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe')
++# @pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe')
+ def test_copy_include(ModelTwo):
+     m = ModelTwo(a=24, d=Model(a='12'))
+     m2 = deprecated_copy(m, include={'a'})
+@@ -204,7 +204,7 @@
+     assert m != m2
+ 
+ 
+-@pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe')
++# @pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe')
+ def test_copy_include_exclude(ModelTwo):
+     m = ModelTwo(a=24, d=Model(a='12'))
+     m2 = deprecated_copy(m, include={'a', 'b', 'c'}, exclude={'c'})
+@@ -213,7 +213,7 @@
+     assert set(m2.model_dump().keys()) == {'a', 'b'}
+ 
+ 
+-@pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe')
++# @pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe')
+ def test_copy_advanced_exclude():
+     class SubSubModel(BaseModel):
+         a: str
+@@ -237,7 +237,7 @@
+     assert m2.model_dump() == {'f': {'c': 'foo'}}
+ 
+ 
+-@pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe')
++# @pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe')
+ def test_copy_advanced_include():
+     class SubSubModel(BaseModel):
+         a: str
+@@ -261,7 +261,7 @@
+     assert m2.model_dump() == {'e': 'e', 'f': {'d': [{'a': 'c', 'b': 'e'}]}}
+ 
+ 
+-@pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe')
++# @pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe')
+ def test_copy_advanced_include_exclude():
+     class SubSubModel(BaseModel):
+         a: str
+@@ -490,7 +490,7 @@
+     assert m.bar == 'Baz'
+ 
+ 
+-@pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe')
++# @pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe')
+ def test_copy_with_excluded_fields():
+     class User(BaseModel):
+         name: str
+--- a/tests/test_config.py
++++ b/tests/test_config.py
+@@ -311,7 +311,7 @@
+                 False,
+                 'bar_',
+                 pytest.raises(ValueError),
+-                marks=pytest.mark.thread_unsafe(reason='`pytest.raises()` is thread unsafe'),
++                # marks=pytest.mark.thread_unsafe(reason='`pytest.raises()` is thread unsafe'),
+             ),
+             [True, True, 'bar', does_not_raise()],
+             [True, True, 'bar_', does_not_raise()],
+@@ -519,7 +519,7 @@
+     assert Child.model_config.get('use_enum_values') is True
+ 
+ 
+-@pytest.mark.thread_unsafe(reason='Flaky')
++# @pytest.mark.thread_unsafe(reason='Flaky')
+ def test_config_wrapper_match():
+     localns = {
+         '_GenerateSchema': GenerateSchema,
+--- a/tests/test_annotated.py
++++ b/tests/test_annotated.py
+@@ -26,12 +26,12 @@
+ NO_VALUE = object()
+ 
+ 
+-@pytest.mark.thread_unsafe(
+-    reason=(
+-        'The `FieldInfo.from_annotated_attribute()` implementation directly mutates the assigned value, '
+-        'if it is a `Field()`. https://github.com/pydantic/pydantic/issues/11122 tracks this issue'
+-    )
+-)
++# @pytest.mark.thread_unsafe(
++#     reason=(
++#         'The `FieldInfo.from_annotated_attribute()` implementation directly mutates the assigned value, '
++#         'if it is a `Field()`. https://github.com/pydantic/pydantic/issues/11122 tracks this issue'
++#     )
++# )
+ @pytest.mark.parametrize(
+     'hint_fn,value,expected_repr',
+     [
+@@ -119,7 +119,7 @@
+     assert metadata in M.__annotations__['x'].__metadata__, 'Annotated type is recorded'
+ 
+ 
+-@pytest.mark.thread_unsafe(reason='`pytest.raises()` is thread unsafe')
++# @pytest.mark.thread_unsafe(reason='`pytest.raises()` is thread unsafe')
+ @pytest.mark.parametrize(
+     ['hint_fn', 'value', 'empty_init_ctx'],
+     [
+--- a/tests/test_aliases.py
++++ b/tests/test_aliases.py
+@@ -404,7 +404,7 @@
+             False,
+             'bar_',
+             pytest.raises(ValueError),
+-            marks=pytest.mark.thread_unsafe(reason='`pytest.raises()` is thread unsafe'),
++            # marks=pytest.mark.thread_unsafe(reason='`pytest.raises()` is thread unsafe'),
+         ),
+         [True, True, 'bar', does_not_raise()],
+         [True, True, 'bar_', does_not_raise()],
+--- a/tests/test_deprecated.py
++++ b/tests/test_deprecated.py
+@@ -34,7 +34,7 @@
+ 
+ # `pytest.warns/raises()` is thread unsafe. As these tests are meant to be
+ # removed in V3, we just mark all tests as thread unsafe
+-pytestmark = pytest.mark.thread_unsafe
++# pytestmark = pytest.mark.thread_unsafe
+ 
+ 
+ def deprecated_from_orm(model_type: type[BaseModel], obj: Any) -> Any:
+--- a/tests/test_deprecated_validate_arguments.py
++++ b/tests/test_deprecated_validate_arguments.py
+@@ -13,7 +13,7 @@
+ 
+ # `pytest.warns/raises()` is thread unsafe. As these tests are meant to be
+ # removed in V3, we just mark all tests as thread unsafe
+-pytestmark = pytest.mark.thread_unsafe
++# pytestmark = pytest.mark.thread_unsafe
+ 
+ 
+ def validate_arguments(*args, **kwargs):
+--- a/tests/test_discriminated_union.py
++++ b/tests/test_discriminated_union.py
+@@ -1658,7 +1658,7 @@
+         ]
+ 
+ 
+-@pytest.mark.thread_unsafe(reason='`pytest.raises()` is thread unsafe')
++# @pytest.mark.thread_unsafe(reason='`pytest.raises()` is thread unsafe')
+ def test_callable_discriminated_union_recursive():
+     # Demonstrate that the errors are very verbose without a callable discriminator:
+     class Model(BaseModel):
+@@ -2153,7 +2153,7 @@
+     assert str(yard_dict['pet']['type']) == 'dog'
+ 
+ 
+-@pytest.mark.thread_unsafe(reason='Passes on multithreaded. This needs to be investigated further.')
++# @pytest.mark.thread_unsafe(reason='Passes on multithreaded. This needs to be investigated further.')
+ @pytest.mark.xfail(reason='Waiting for union serialization fixes via https://github.com/pydantic/pydantic/issues/9688.')
+ def test_discriminated_union_serializer() -> None:
+     """Reported via https://github.com/pydantic/pydantic/issues/9590."""
+--- a/tests/test_plugins.py
++++ b/tests/test_plugins.py
+@@ -19,7 +19,7 @@
+ )
+ from pydantic.plugin._loader import _plugins
+ 
+-pytestmark = pytest.mark.thread_unsafe(reason='`install_plugin()` is thread unsafe')
++# pytestmark = pytest.mark.thread_unsafe(reason='`install_plugin()` is thread unsafe')
+ 
+ 
+ @contextlib.contextmanager
+--- a/tests/test_types.py
++++ b/tests/test_types.py
+@@ -1986,7 +1986,7 @@
+     (
+         ([1, 2, '3'], [1, 2, '3']),
+         ((1, 2, '3'), [1, 2, '3']),
+-        pytest.param((i**2 for i in range(5)), [0, 1, 4, 9, 16], marks=pytest.mark.thread_unsafe),
++        pytest.param((i**2 for i in range(5)), [0, 1, 4, 9, 16]),
+         (deque([1, 2, 3]), [1, 2, 3]),
+         ({1, '2'}, IsOneOf([1, '2'], ['2', 1])),
+     ),
+@@ -2036,7 +2036,7 @@
+     (
+         ([1, 2, '3'], (1, 2, '3')),
+         ((1, 2, '3'), (1, 2, '3')),
+-        pytest.param((i**2 for i in range(5)), (0, 1, 4, 9, 16), marks=pytest.mark.thread_unsafe),
++        pytest.param((i**2 for i in range(5)), (0, 1, 4, 9, 16)),
+         (deque([1, 2, 3]), (1, 2, 3)),
+         ({1, '2'}, IsOneOf((1, '2'), ('2', 1))),
+     ),
+@@ -2066,7 +2066,7 @@
+     (
+         ([1, 2, '3'], int, (1, 2, 3)),
+         ((1, 2, '3'), int, (1, 2, 3)),
+-        pytest.param((i**2 for i in range(5)), int, (0, 1, 4, 9, 16), marks=pytest.mark.thread_unsafe),
++        pytest.param((i**2 for i in range(5)), int, (0, 1, 4, 9, 16)),
+         (('a', 'b', 'c'), str, ('a', 'b', 'c')),
+     ),
+ )
+--- a/tests/test_validators.py
++++ b/tests/test_validators.py
+@@ -720,7 +720,7 @@
+         pytest.param(
+             validator,
+             pytest.warns(PydanticDeprecatedSince20, match=V1_VALIDATOR_DEPRECATION_MATCH),
+-            marks=pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe'),
++            # marks=pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe'),
+         ),
+         (field_validator, contextlib.nullcontext()),
+     ],
+@@ -765,7 +765,7 @@
+         pytest.param(
+             validator,
+             pytest.warns(PydanticDeprecatedSince20, match=V1_VALIDATOR_DEPRECATION_MATCH),
+-            marks=pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe'),
++            # marks=pytest.mark.thread_unsafe(reason='`pytest.warns()` is thread unsafe'),
+         ),
+         (field_validator, contextlib.nullcontext()),
+     ],
+--- a/tests/conftest.py
++++ b/tests/conftest.py
+@@ -182,12 +182,12 @@
+ 
+ 
+ _thread_unsafe_fixtures = (
+-    'generate_schema_calls',  # Monkeypatches Pydantic code
+-    'benchmark',  # Fixture can't be reused
+-    'tmp_path',  # Duplicate paths
+-    'tmpdir',  # Duplicate dirs
+-    'copy_method',  # Uses `pytest.warns()`
+-    'reset_plugins',  # Monkeypatching
++    # 'generate_schema_calls',  # Monkeypatches Pydantic code
++    # 'benchmark',  # Fixture can't be reused
++    # 'tmp_path',  # Duplicate paths
++    # 'tmpdir',  # Duplicate dirs
++    # 'copy_method',  # Uses `pytest.warns()`
++    # 'reset_plugins',  # Monkeypatching
+ )
+ 
+ 
