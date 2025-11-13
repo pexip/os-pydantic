@@ -15,11 +15,10 @@ We use `__get_pydantic_core_schema__` in the validator to customize the schema o
 import datetime as dt
 from dataclasses import dataclass
 from pprint import pprint
-from typing import Any, Callable, Optional
+from typing import Annotated, Any, Callable, Optional
 
 import pytz
 from pydantic_core import CoreSchema, core_schema
-from typing_extensions import Annotated
 
 from pydantic import (
     GetCoreSchemaHandler,
@@ -99,16 +98,14 @@ except ValidationError as ve:
 
 We can also enforce UTC offset constraints in a similar way.  Assuming we have a `lower_bound` and an `upper_bound`, we can create a custom validator to ensure our `datetime` has a UTC offset that is inclusive within the boundary we define:
 
-
 ```python
 import datetime as dt
 from dataclasses import dataclass
 from pprint import pprint
-from typing import Any, Callable
+from typing import Annotated, Any, Callable
 
 import pytz
 from pydantic_core import CoreSchema, core_schema
-from typing_extensions import Annotated
 
 from pydantic import GetCoreSchemaHandler, TypeAdapter, ValidationError
 
@@ -178,8 +175,6 @@ In this example, we construct a validator that checks that each user's password 
 One way to do this is to place a custom validator on the outer model:
 
 ```python
-from typing import List
-
 from typing_extensions import Self
 
 from pydantic import BaseModel, ValidationError, model_validator
@@ -191,8 +186,8 @@ class User(BaseModel):
 
 
 class Organization(BaseModel):
-    forbidden_passwords: List[str]
-    users: List[User]
+    forbidden_passwords: list[str]
+    users: list[User]
 
     @model_validator(mode='after')
     def validate_user_passwords(self) -> Self:
@@ -229,8 +224,6 @@ Alternatively, a custom validator can be used in the nested model class (`User`)
     The ability to mutate the context within a validator adds a lot of power to nested validation, but can also lead to confusing or hard-to-debug code. Use this approach at your own risk!
 
 ```python
-from typing import List
-
 from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator
 
 
@@ -253,12 +246,12 @@ class User(BaseModel):
 
 
 class Organization(BaseModel):
-    forbidden_passwords: List[str]
-    users: List[User]
+    forbidden_passwords: list[str]
+    users: list[User]
 
     @field_validator('forbidden_passwords', mode='after')
     @classmethod
-    def add_context(cls, v: List[str], info: ValidationInfo) -> List[str]:
+    def add_context(cls, v: list[str], info: ValidationInfo) -> list[str]:
         if info.context is not None:
             info.context.update({'forbidden_passwords': v})
         return v
@@ -285,4 +278,4 @@ except ValidationError as e:
 
 Note that if the context property is not included in `model_validate`, then `info.context` will be `None` and the forbidden passwords list will not get added to the context in the above implementation. As such, `validate_user_passwords` would not carry out the desired password validation.
 
-More details about validation context can be found [here](../concepts/validators.md#validation-context).
+More details about validation context can be found in the [validators documentation](../concepts/validators.md#validation-context).

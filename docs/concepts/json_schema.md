@@ -28,7 +28,6 @@ Use the following functions to generate JSON schema:
     [`TypeAdapter.json_schema`][pydantic.type_adapter.TypeAdapter.json_schema], calling
     `json.dumps(TypeAdapter(<some_type>).json_schema())` returns a valid JSON string.
 
-
 !!! tip
     Pydantic offers support for both of:
 
@@ -45,9 +44,7 @@ Here's an example of generating JSON schema from a `BaseModel`:
 ```python {output="json"}
 import json
 from enum import Enum
-from typing import Union
-
-from typing_extensions import Annotated
+from typing import Annotated, Union
 
 from pydantic import BaseModel, Field
 from pydantic.config import ConfigDict
@@ -168,11 +165,9 @@ Pydantic V1 (which is now deprecated).
 Here's an example of generating JSON schema from a [`TypeAdapter`][pydantic.type_adapter.TypeAdapter]:
 
 ```python
-from typing import List
-
 from pydantic import TypeAdapter
 
-adapter = TypeAdapter(List[int])
+adapter = TypeAdapter(list[int])
 print(adapter.json_schema())
 #> {'items': {'type': 'integer'}, 'type': 'array'}
 ```
@@ -281,7 +276,13 @@ print(Model.model_json_schema(mode='validation'))
 {
     'properties': {
         'a': {
-            'anyOf': [{'type': 'number'}, {'type': 'string'}],
+            'anyOf': [
+                {'type': 'number'},
+                {
+                    'pattern': '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+                    'type': 'string',
+                },
+            ],
             'default': '12.34',
             'title': 'A',
         }
@@ -294,13 +295,19 @@ print(Model.model_json_schema(mode='validation'))
 print(Model.model_json_schema(mode='serialization'))
 """
 {
-    'properties': {'a': {'default': '12.34', 'title': 'A', 'type': 'string'}},
+    'properties': {
+        'a': {
+            'default': '12.34',
+            'pattern': '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            'title': 'A',
+            'type': 'string',
+        }
+    },
     'title': 'Model',
     'type': 'object',
 }
 """
 ```
-
 
 ## Customizing JSON Schema
 
@@ -447,9 +454,8 @@ You can specify JSON schema modifications via the [`Field`][pydantic.fields.Fiel
 
 ```python {output="json"}
 import json
+from typing import Annotated
 from uuid import uuid4
-
-from typing_extensions import Annotated
 
 from pydantic import BaseModel, Field
 
@@ -628,8 +634,9 @@ for more details.
 
 ```python
 import json
+from typing import Annotated
 
-from typing_extensions import Annotated, TypeAlias
+from typing_extensions import TypeAlias
 
 from pydantic import Field, TypeAdapter
 
@@ -671,8 +678,7 @@ for the field (in the following example, the `'type'` also needs to be provided)
 
 ```python {output="json"}
 import json
-
-from typing_extensions import Annotated
+from typing import Annotated
 
 from pydantic import BaseModel, WithJsonSchema
 
@@ -719,7 +725,7 @@ print(json.dumps(Model.model_json_schema(), indent=2))
 ??? api "API Documentation"
     [`pydantic.json_schema.SkipJsonSchema`][pydantic.json_schema.SkipJsonSchema]<br>
 
-The [`SkipJsonSchema`][pydantic.json_schema.SkipJsonSchema] annotation can be used to skip a including field (or part of a field's specifications)
+The [`SkipJsonSchema`][pydantic.json_schema.SkipJsonSchema] annotation can be used to skip an included field (or part of a field's specifications)
 from the generated JSON schema. See the API docs for more details.
 
 ### Implementing `__get_pydantic_core_schema__` <a name="implementing_get_pydantic_core_schema"></a>
@@ -739,7 +745,7 @@ Here is an example of a custom type that *overrides* the generated `core_schema`
 
 ```python
 from dataclasses import dataclass
-from typing import Any, Dict, List, Type
+from typing import Any
 
 from pydantic_core import core_schema
 
@@ -748,15 +754,15 @@ from pydantic import BaseModel, GetCoreSchemaHandler
 
 @dataclass
 class CompressedString:
-    dictionary: Dict[int, str]
-    text: List[int]
+    dictionary: dict[int, str]
+    text: list[int]
 
     def build(self) -> str:
         return ' '.join([self.dictionary[key] for key in self.text])
 
     @classmethod
     def __get_pydantic_core_schema__(
-        cls, source: Type[Any], handler: GetCoreSchemaHandler
+        cls, source: type[Any], handler: GetCoreSchemaHandler
     ) -> core_schema.CoreSchema:
         assert source is CompressedString
         return core_schema.no_info_after_validator_function(
@@ -771,8 +777,8 @@ class CompressedString:
 
     @staticmethod
     def _validate(value: str) -> 'CompressedString':
-        inverse_dictionary: Dict[str, int] = {}
-        text: List[int] = []
+        inverse_dictionary: dict[str, int] = {}
+        text: list[int] = []
         for word in value.split(' '):
             if word not in inverse_dictionary:
                 inverse_dictionary[word] = len(inverse_dictionary)
@@ -816,11 +822,11 @@ The process for `Annotated` metadata is much the same except that you can genera
 Pydantic handle generating the schema.
 
 ```python
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Sequence, Type
+from typing import Annotated, Any
 
 from pydantic_core import core_schema
-from typing_extensions import Annotated
 
 from pydantic import BaseModel, GetCoreSchemaHandler, ValidationError
 
@@ -830,7 +836,7 @@ class RestrictCharacters:
     alphabet: Sequence[str]
 
     def __get_pydantic_core_schema__(
-        self, source: Type[Any], handler: GetCoreSchemaHandler
+        self, source: type[Any], handler: GetCoreSchemaHandler
     ) -> core_schema.CoreSchema:
         if not self.alphabet:
             raise ValueError('Alphabet may not be empty')
@@ -884,10 +890,9 @@ So far we have been wrapping the schema, but if you just want to *modify* it or 
 To modify the schema, first call the handler, then mutate the result:
 
 ```python
-from typing import Any, Type
+from typing import Annotated, Any
 
 from pydantic_core import ValidationError, core_schema
-from typing_extensions import Annotated
 
 from pydantic import BaseModel, GetCoreSchemaHandler
 
@@ -895,7 +900,7 @@ from pydantic import BaseModel, GetCoreSchemaHandler
 class SmallString:
     def __get_pydantic_core_schema__(
         self,
-        source: Type[Any],
+        source: type[Any],
         handler: GetCoreSchemaHandler,
     ) -> core_schema.CoreSchema:
         schema = handler(source)
@@ -926,17 +931,16 @@ To override the schema completely, do not call the handler and return your own
 `CoreSchema`:
 
 ```python
-from typing import Any, Type
+from typing import Annotated, Any
 
 from pydantic_core import ValidationError, core_schema
-from typing_extensions import Annotated
 
 from pydantic import BaseModel, GetCoreSchemaHandler
 
 
 class AllowAnySubclass:
     def __get_pydantic_core_schema__(
-        self, source: Type[Any], handler: GetCoreSchemaHandler
+        self, source: type[Any], handler: GetCoreSchemaHandler
     ) -> core_schema.CoreSchema:
         # we can't call handler since it will fail for arbitrary types
         def validate(value: Any) -> Any:
@@ -973,52 +977,6 @@ except ValidationError as e:
     f
       Value error, Expected an instance of <class '__main__.Foo'>, got an instance of <class '__main__.NotFoo'> [type=value_error, input_value=<__main__.NotFoo object at 0x0123456789ab>, input_type=NotFoo]
     """
-```
-
-As seen above, annotating a field with a `BaseModel` type can be used to modify or override the generated json schema.
-However, if you want to take advantage of storing metadata via `Annotated`, but you don't want to override the generated JSON
-schema, you can use the following approach with a no-op version of `__get_pydantic_core_schema__` implemented on the
-metadata class:
-
-```python
-from typing import Type
-
-from pydantic_core import CoreSchema
-from typing_extensions import Annotated
-
-from pydantic import BaseModel, GetCoreSchemaHandler
-
-
-class Metadata(BaseModel):
-    foo: str = 'metadata!'
-    bar: int = 100
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Type[BaseModel], handler: GetCoreSchemaHandler
-    ) -> CoreSchema:
-        if cls is not source_type:
-            return handler(source_type)
-        return super().__get_pydantic_core_schema__(source_type, handler)
-
-
-class Model(BaseModel):
-    state: Annotated[int, Metadata()]
-
-
-m = Model.model_validate({'state': 2})
-print(repr(m))
-#> Model(state=2)
-print(m.model_fields)
-"""
-{
-    'state': FieldInfo(
-        annotation=int,
-        required=True,
-        metadata=[Metadata(foo='metadata!', bar=100)],
-    )
-}
-"""
 ```
 
 ### Implementing `__get_pydantic_json_schema__` <a name="implementing_get_pydantic_json_schema"></a>
@@ -1102,7 +1060,6 @@ print(json.dumps(TypeAdapter(Person).json_schema(), indent=2))
 """
 ```
 
-
 ### Using `field_title_generator`
 
 The `field_title_generator` parameter can be used to programmatically generate the title for a field based on its name and info.
@@ -1156,12 +1113,11 @@ See the following example:
 
 ```python
 import json
-from typing import Type
 
 from pydantic import BaseModel, ConfigDict
 
 
-def make_title(model: Type) -> str:
+def make_title(model: type) -> str:
     return f'Title-{model.__name__}'
 
 
@@ -1207,7 +1163,6 @@ following priority order (when there is an equivalent available):
 The field schema mapping from Python or Pydantic to JSON schema is done as follows:
 
 {{ schema_mappings_table }}
-
 
 ## Top-level schema generation
 

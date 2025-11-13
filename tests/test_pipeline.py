@@ -3,24 +3,15 @@
 from __future__ import annotations
 
 import datetime
-import sys
-import warnings
 from decimal import Decimal
-from typing import Any, Callable, Dict, FrozenSet, List, Set, Tuple, Union
+from typing import Annotated, Any, Callable, Union
 
 import pytest
 import pytz
 from annotated_types import Interval
-from typing_extensions import Annotated
 
-if sys.version_info >= (3, 9):
-    pass
-
-from pydantic import PydanticExperimentalWarning, TypeAdapter, ValidationError
-
-with warnings.catch_warnings():
-    warnings.filterwarnings('ignore', category=PydanticExperimentalWarning)
-    from pydantic.experimental.pipeline import _Pipeline, transform, validate_as  # type: ignore
+from pydantic import TypeAdapter, ValidationError
+from pydantic.experimental.pipeline import _Pipeline, transform, validate_as  # pyright: ignore[reportPrivateUsage]
 
 
 @pytest.mark.parametrize('potato_variation', ['potato', ' potato ', ' potato', 'potato ', ' POTATO ', ' PoTatO '])
@@ -120,27 +111,27 @@ def test_interval_constraints(type_: Any, pipeline: Any, valid_cases: list[Any],
             ['a', 'abcdef'],
         ),
         (
-            List[int],
-            validate_as(List[int]).len(min_len=1, max_len=3),
+            list[int],
+            validate_as(list[int]).len(min_len=1, max_len=3),
             [[1], [1, 2], [1, 2, 3]],
             [[], [1, 2, 3, 4]],
         ),
-        (Tuple[int, ...], validate_as(Tuple[int, ...]).len(min_len=1, max_len=2), [(1,), (1, 2)], [(), (1, 2, 3)]),
+        (tuple[int, ...], validate_as(tuple[int, ...]).len(min_len=1, max_len=2), [(1,), (1, 2)], [(), (1, 2, 3)]),
         (
-            Set[int],
-            validate_as(Set[int]).len(min_len=2, max_len=4),
+            set[int],
+            validate_as(set[int]).len(min_len=2, max_len=4),
             [{1, 2}, {1, 2, 3}, {1, 2, 3, 4}],
             [{1}, {1, 2, 3, 4, 5}],
         ),
         (
-            FrozenSet[int],
-            validate_as(FrozenSet[int]).len(min_len=2, max_len=3),
+            frozenset[int],
+            validate_as(frozenset[int]).len(min_len=2, max_len=3),
             [frozenset({1, 2}), frozenset({1, 2, 3})],
             [frozenset({1}), frozenset({1, 2, 3, 4})],
         ),
         (
-            Dict[str, int],
-            validate_as(Dict[str, int]).len(min_len=1, max_len=2),
+            dict[str, int],
+            validate_as(dict[str, int]).len(min_len=1, max_len=2),
             [{'a': 1}, {'a': 1, 'b': 2}],
             [{}, {'a': 1, 'b': 2, 'c': 3}],
         ),
@@ -184,6 +175,55 @@ def test_parse_tz() -> None:
     assert ta_tza.validate_python(date_a) == date_a
     with pytest.raises(ValueError):
         ta_tza.validate_python(date)
+
+
+def test_timezone_constraint_else_block() -> None:
+    """Test to hit the else block in Timezone constraint handling.
+
+    This happens when tz is ... but the schema is NOT datetime type.
+    The else block creates a check_tz_aware function that expects datetime objects.
+    """
+
+    ta_tz_aware = TypeAdapter[datetime.datetime](
+        Annotated[
+            datetime.datetime,
+            validate_as(str)
+            .transform(
+                lambda x: datetime.datetime.strptime(x, '%Y-%m-%dT%H:%M:%S.%f').replace(tzinfo=datetime.timezone.utc)
+            )
+            .datetime_tz_aware(),
+        ]
+    )
+
+    assert ta_tz_aware.validate_python('2032-06-04T11:15:30.400000') == datetime.datetime(
+        2032, 6, 4, 11, 15, 30, 400000, tzinfo=datetime.timezone.utc
+    )
+
+    ta_tz_aware_success = TypeAdapter[datetime.datetime](
+        Annotated[
+            datetime.datetime,
+            validate_as(str)
+            .transform(lambda x: datetime.datetime.strptime(x, '%Y-%m-%dT%H:%M:%S.%f%z'))
+            .datetime_tz_aware(),
+        ]
+    )
+
+    result = ta_tz_aware_success.validate_python('2032-06-04T11:15:30.400000+00:00')
+    assert result == datetime.datetime(2032, 6, 4, 11, 15, 30, 400000, tzinfo=datetime.timezone.utc)
+    assert result.tzinfo is not None
+
+    ta_tz_naive = TypeAdapter[datetime.datetime](
+        Annotated[
+            datetime.datetime,
+            validate_as(str)
+            .transform(lambda x: datetime.datetime.strptime(x, '%Y-%m-%dT%H:%M:%S.%f'))
+            .datetime_tz_naive(),
+        ]
+    )
+
+    result_naive = ta_tz_naive.validate_python('2032-06-04T11:15:30.400000')
+    assert result_naive.tzinfo is None
+    assert result_naive == datetime.datetime(2032, 6, 4, 11, 15, 30, 400000)
 
 
 @pytest.mark.parametrize(
@@ -260,6 +300,11 @@ def test_predicates() -> None:
     with pytest.raises(ValidationError):
         ta_str.validate_python('potato')
 
+    ta_str_to_int = TypeAdapter[int](
+        Annotated[str, validate_as(str).transform(lambda x: int(float(x))).predicate(float)]
+    )
+    assert ta_str_to_int.validate_python('1.5') == 1
+
 
 @pytest.mark.parametrize(
     'model, expected_val_schema, expected_ser_schema',
@@ -295,7 +340,7 @@ def test_predicates() -> None:
             {'anyOf': [{'type': 'integer', 'exclusiveMinimum': 0}, {'type': 'integer', 'exclusiveMaximum': 100}]},
         ),
         (
-            Annotated[List[int], validate_as(...).len(0, 100)],
+            Annotated[list[int], validate_as(...).len(0, 100)],
             {'type': 'array', 'items': {'type': 'integer'}, 'maxItems': 100},
             {'type': 'array', 'items': {'type': 'integer'}, 'maxItems': 100},
         ),
@@ -421,3 +466,11 @@ def test_composition() -> None:
         ta.validate_python(21)
     assert calls == [('1', 21), ('2', 21), ('3', 21)]
     calls.clear()
+
+
+def test_validate_as_ellipsis_preserves_other_steps() -> None:
+    """https://github.com/pydantic/pydantic/issues/11624"""
+
+    ta = TypeAdapter[float](Annotated[float, validate_as(str).transform(lambda v: v.split()[0]).validate_as(...)])
+
+    assert ta.validate_python('12 ab') == 12.0

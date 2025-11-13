@@ -18,7 +18,7 @@ Pydantic has a few dependencies:
 * [`typing-extensions`](https://pypi.org/project/typing-extensions/): Backport of the standard library [typing][] module.
 * [`annotated-types`](https://pypi.org/project/annotated-types/): Reusable constraint types to use with [`typing.Annotated`][].
 
-If you've got Python 3.8+ and `pip` installed, you're good to go.
+If you've got Python 3.9+ and `pip` installed, you're good to go.
 
 Pydantic is also available on [conda](https://www.anaconda.com) under the [conda-forge](https://conda-forge.org)
 channel:
@@ -35,7 +35,6 @@ Pydantic has the following optional dependencies:
 * `timezone`: Fallback IANA time zone database provided by the [tzdata](https://pypi.org/project/tzdata/) package.
 
 To install optional dependencies along with Pydantic:
-
 
 === "pip"
 
@@ -60,7 +59,6 @@ Of course, you can also install requirements manually with `pip install email-va
 ## Install from repository
 
 And if you prefer to install Pydantic directly from the repository:
-
 
 === "pip"
 
