@@ -7,11 +7,12 @@ import re
 import sys
 from enum import Enum
 from functools import partial, partialmethod
-from typing import Any, Callable, ClassVar, Dict, List, Optional, Pattern, Union
+from re import Pattern
+from typing import Annotated, Any, Callable, ClassVar, Optional, Union
 
 import pytest
 from pydantic_core import PydanticSerializationError, core_schema, to_jsonable_python
-from typing_extensions import Annotated, TypedDict
+from typing_extensions import TypedDict
 
 from pydantic import (
     BaseModel,
@@ -482,12 +483,14 @@ def test_model_serializer_plain_json_return_type():
     m = MyModel(a=666)
     assert m.model_dump() == {'a': 666}
     with pytest.warns(
-        UserWarning, match='Expected `str` but got `int` with value `666` - serialized value may not be as expected'
+        UserWarning,
+        match=r'Expected `str` - serialized value may not be as expected \[input_value=666, input_type=int\]',
     ):
         assert m.model_dump(mode='json') == 666
 
     with pytest.warns(
-        UserWarning, match='Expected `str` but got `int` with value `666` - serialized value may not be as expected'
+        UserWarning,
+        match=r'Expected `str` - serialized value may not be as expected \[input_value=666, input_type=int\]',
     ):
         assert m.model_dump_json() == '666'
 
@@ -684,7 +687,7 @@ def test_serializer_allow_reuse_inheritance_override():
     # defining an _different_ serializer on the other hand is not allowed
     # because they would both "exist" thus causing confusion
     # since it's not clear if both or just one will run
-    msg = 'Multiple field serializer functions were defined ' "for field 'x', this is not allowed."
+    msg = "Multiple field serializer functions were defined for field 'x', this is not allowed."
     with pytest.raises(TypeError, match=msg):
 
         class _(Parent):
@@ -775,7 +778,7 @@ def test_serializer_allow_reuse_different_field_3():
             y: int
 
             ser_x = field_serializer('x')(ser1)
-            ser_x = field_serializer('y')(ser2)
+            ser_x = field_serializer('y')(ser2)  # noqa: PIE794
 
     assert Model(x=1, y=2).model_dump() == {'x': 1, 'y': 'ser2'}
 
@@ -847,7 +850,7 @@ def test_model_serializer_nested_models() -> None:
         inner: Optional['Model']
 
         @model_serializer(mode='wrap')
-        def ser_model(self, handler: Callable[['Model'], Dict[str, Any]]) -> Dict[str, Any]:
+        def ser_model(self, handler: Callable[['Model'], dict[str, Any]]) -> dict[str, Any]:
             inner = handler(self)
             inner['x'] += 1
             return inner
@@ -913,7 +916,7 @@ def test_type_adapter_dump_json():
         y: float
 
         @model_serializer(mode='plain')
-        def ser_model(self) -> Dict[str, Any]:
+        def ser_model(self) -> dict[str, Any]:
             return {'x': self['x'] * 2, 'y': self['y'] * 3}
 
     ta = TypeAdapter(Model)
@@ -1088,7 +1091,7 @@ def test_annotated_computed_field_custom_serializer():
 
 
 @pytest.mark.skipif(
-    sys.version_info < (3, 9) or sys.version_info >= (3, 13),
+    sys.version_info >= (3, 13),
     reason='@computed_field @classmethod @property only works in 3.9-3.12',
 )
 def test_forward_ref_for_classmethod_computed_fields():
@@ -1122,7 +1125,7 @@ def test_enum_as_dict_key() -> None:
         B = 'b'
 
     class MyModel(BaseModel):
-        foo: Dict[MyEnum, str]
+        foo: dict[MyEnum, str]
         bar: MyEnum
 
     assert MyModel(foo={MyEnum.A: 'hello'}, bar=MyEnum.B).model_dump_json() == '{"foo":{"a":"hello"},"bar":"b"}'
@@ -1139,10 +1142,10 @@ def test_subclass_support_unions() -> None:
         age: str
 
     class Home(BaseModel):
-        little_guys: Union[List[Pet], List[Kid]]
+        little_guys: Union[list[Pet], list[Kid]]
 
     class Shelter(BaseModel):
-        pets: List[Pet]
+        pets: list[Pet]
 
     h1 = Home(little_guys=[Pet(name='spot'), Pet(name='buddy')])
     assert h1.model_dump() == {'little_guys': [{'name': 'spot'}, {'name': 'buddy'}]}
@@ -1163,7 +1166,7 @@ def test_subclass_support_unions_with_forward_ref() -> None:
         baz_id: int
 
     class Foo(BaseModel):
-        items: Union[List['Foo'], List[Bar]]
+        items: Union[list['Foo'], list[Bar]]
 
     foo = Foo(items=[Baz(bar_id=1, baz_id=2), Baz(bar_id=3, baz_id=4)])
     assert foo.model_dump() == {'items': [{'bar_id': 1}, {'bar_id': 3}]}
@@ -1173,7 +1176,7 @@ def test_subclass_support_unions_with_forward_ref() -> None:
 
 
 def test_serialize_python_context() -> None:
-    contexts: List[Any] = [None, None, {'foo': 'bar'}]
+    contexts: list[Any] = [None, None, {'foo': 'bar'}]
 
     class Model(BaseModel):
         x: int
@@ -1191,7 +1194,7 @@ def test_serialize_python_context() -> None:
 
 
 def test_serialize_json_context() -> None:
-    contexts: List[Any] = [None, None, {'foo': 'bar'}]
+    contexts: list[Any] = [None, None, {'foo': 'bar'}]
 
     class Model(BaseModel):
         x: int
@@ -1226,6 +1229,21 @@ def test_plain_serializer_with_std_type() -> None:
     }
 
 
+def test_plain_serializer_dunder_call() -> None:
+    class Replacer:
+        def __init__(self, from_: str, to_: str) -> None:
+            self._from = from_
+            self._to = to_
+
+        def __call__(self, s: str) -> str:
+            return s.replace(self._from, self._to)
+
+    class MyModel(BaseModel):
+        x: Annotated[str, PlainSerializer(Replacer('__', '.'))]
+
+    assert MyModel(x='a__b').model_dump() == {'x': 'a.b'}
+
+
 @pytest.mark.xfail(reason='Waiting for union serialization fixes via https://github.com/pydantic/pydantic/issues/9688.')
 def smart_union_serialization() -> None:
     """Initially reported via https://github.com/pydantic/pydantic/issues/9417, effectively a round tripping problem with type consistency."""
@@ -1248,11 +1266,11 @@ def test_serialize_with_custom_ser() -> None:
         id: int
 
         @model_serializer
-        def dump(self) -> Dict[str, Any]:
+        def dump(self) -> dict[str, Any]:
             return {'id': self.id}
 
     class ItemContainer(BaseModel):
-        item_or_items: Union[Item, List[Item]]
+        item_or_items: Union[Item, list[Item]]
 
     items = [Item(id=i) for i in range(5)]
     assert (
@@ -1280,3 +1298,41 @@ def test_field_serializers_use_enum_ref() -> None:
 
     m = MyModel()
     assert m.model_dump()['computed_a_or_b'] == 'b'
+
+
+def test_serialization_fallback() -> None:
+    class Arbitrary:
+        value = 1
+
+    def fallback(v: Any) -> Any:
+        if isinstance(v, Arbitrary):
+            return v.value
+
+    ta = TypeAdapter(Any)
+
+    assert ta.dump_python(Arbitrary(), fallback=fallback) == 1
+
+
+def test_wrap_ser_called_once() -> None:
+    """See https://github.com/pydantic/pydantic/issues/11505 for context.
+
+    This is effectively confirming that prebuilt serializers aren't used for wrap serializers.
+    """
+
+    class MyModel(BaseModel):
+        inner_value: str
+
+        @model_serializer(mode='wrap')
+        def my_wrapper_serializer(self, serializer):
+            self.inner_value = f'my_prefix:{self.inner_value}'
+            return serializer(self)
+
+    class MyParentModel(BaseModel):
+        nested: MyModel
+
+        @field_serializer('nested', mode='wrap')
+        def wrapped_field_serializer(self, field_value, serializer):
+            return serializer(field_value)
+
+    my_model = MyParentModel.model_validate({'nested': {'inner_value': 'foo'}})
+    assert my_model.model_dump() == {'nested': {'inner_value': 'my_prefix:foo'}}

@@ -1,4 +1,4 @@
-from typing import Any, Generic, List, Optional, Set, TypeVar, Union
+from typing import Any, Generic, Optional, Set, TypeVar, Union
 
 from pydantic import BaseModel, Extra, Field, field_validator
 from pydantic.dataclasses import dataclass
@@ -167,14 +167,14 @@ class DynamicAliasModel2(BaseModel):
     z: int
 
     class Config:
-        populate_by_name = True
+        validate_by_name = True
 
 
 DynamicAliasModel2(y='y', z=1)
 DynamicAliasModel2(x='y', z=1)
 
 
-class KwargsDynamicAliasModel(BaseModel, populate_by_name=True):
+class KwargsDynamicAliasModel(BaseModel, validate_by_name=True):
     x: str = Field(..., alias=x_alias)
     z: int
 

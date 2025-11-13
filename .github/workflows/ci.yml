@@ -11,6 +11,7 @@ on:
 env:
   COLUMNS: 150
   UV_FROZEN: true
+  FORCE_COLOR: 1
 
 jobs:
   lint:
@@ -19,17 +20,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v7
         with:
-          enable-cache: true
+          python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --python ${{ matrix.python-version }} --group linting --all-extras
-
+        # Installing pip is required for the pre-commit action:
+        run: |
+          uv sync --group linting --all-extras
+          uv pip install pip
       - uses: pre-commit/action@v3.0.1
         with:
           extra_args: --all-files --verbose
@@ -39,44 +42,41 @@ jobs:
   docs-build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
-    - uses: astral-sh/setup-uv@v3
+    - uses: astral-sh/setup-uv@v7
       with:
-        enable-cache: true
+        python-version: '3.12'
 
     - name: Install dependencies
       # Unlike the docs build, we don't use mkdocs_material-insiders
       # Because the secret for accessing the library is not accessible from forks, but we still want to run
       # this job on public CI runs.
-      run: uv sync --python 3.12 --group docs
+      run: uv sync --group docs
 
     - run: uv run python -c 'import docs.plugins.main'
 
-    # Adding local symlinks gets nice source locations like
-    #   pydantic_core/core_schema.py
-    # instead of
-    #   .venv/lib/python3.10/site-packages/pydantic_core/core_schema.py
+    # Taken from docs-build.sh
     - name: prepare shortcuts for extra modules
       run: |
         ln -s .venv/lib/python*/site-packages/pydantic_core pydantic_core
         ln -s .venv/lib/python*/site-packages/pydantic_settings pydantic_settings
         ln -s .venv/lib/python*/site-packages/pydantic_extra_types pydantic_extra_types
 
-    - run: uv run mkdocs build
+    - run: PYTHONPATH="$PWD${PYTHONPATH:+:${PYTHONPATH}}" uv run mkdocs build
 
   test-memray:
     name: Test memray
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v7
         with:
-          enable-cache: true
+          python-version: '3.12'
 
       - name: install deps
-        run: uv sync --python 3.12 --group testing-extra
+        run: uv sync --group testing-extra
 
       - name: Run tests
         run: uv run pytest --ignore=tests/mypy/ --ignore=tests/test_docs.py --memray
@@ -86,45 +86,41 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-13, macos-latest, windows-latest]
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+        os: [ubuntu-latest, macos-15-intel, macos-latest, windows-latest]
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14', '3.14t']
         include:
           # no pydantic-core binaries for pypy on windows, so tests take absolute ages
           # macos tests with pypy take ages (>10mins) since pypy is very slow
           # so we only test pypy on ubuntu
           - os: ubuntu-latest
-            python-version: 'pypy3.9'
-          - os: ubuntu-latest
             python-version: 'pypy3.10'
+          - os: ubuntu-latest
+            python-version: 'pypy3.11'
         exclude:
-          # Python 3.8 and 3.9 are not available on macOS 14
-          - os: macos-13
+          - os: macos-15-intel
             python-version: '3.10'
-          - os: macos-13
+          - os: macos-15-intel
             python-version: '3.11'
-          - os: macos-13
+          - os: macos-15-intel
             python-version: '3.12'
           - os: macos-latest
             python-version: '3.13'
-          - os: macos-latest
-            python-version: '3.8'
           - os: macos-latest
             python-version: '3.9'
 
     env:
       OS: ${{ matrix.os }}
       DEPS: yes
-      UV_PYTHON: ${{ matrix.python-version }}
       UV_PYTHON_PREFERENCE: only-managed
 
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
-    - uses: astral-sh/setup-uv@v3
+    - uses: astral-sh/setup-uv@v7
       with:
-        enable-cache: true
+        python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
       run: uv sync --extra timezone
@@ -135,54 +131,45 @@ jobs:
 
     - name: Test without email-validator
       # speed up by skipping this step on pypy
-      if: "!startsWith(matrix.python-version, 'pypy')"
-      run: make test
+      if: ${{ !startsWith(matrix.python-version, 'pypy') }}
+      run: make test NUM_THREADS=${{ endsWith(matrix.python-version, 't') && '4' || '1' }}
+      # Free threaded is flaky, allow failures for now:
+      continue-on-error: ${{ endsWith(matrix.python-version, 't') }}
       env:
         COVERAGE_FILE: coverage/.coverage.${{ runner.os }}-py${{ matrix.python-version }}-without-deps
         CONTEXT: ${{ runner.os }}-py${{ matrix.python-version }}-without-deps
 
     - name: Install extra dependencies
+      # Skip free threaded, we can't install memray
+      if: ${{ !endsWith(matrix.python-version, 't') }}
       run: uv sync --group testing-extra --all-extras
 
     - name: Test with all extra dependencies
+      if: ${{ !endsWith(matrix.python-version, 't') }}
       run: make test
       env:
         COVERAGE_FILE: coverage/.coverage.${{ runner.os }}-py${{ matrix.python-version }}-with-deps
         CONTEXT: ${{ runner.os }}-py${{ matrix.python-version }}-with-deps
 
     - name: Store coverage files
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: coverage-${{ matrix.os }}-${{ matrix.python-version }}
         path: coverage
         include-hidden-files: true
 
-  test-fastapi:
-    # If some tests start failing due to out-of-date schemas/validation errors/etc.,
-    # update the `tests/test_fastapi.sh` script to exclude tests that have known-acceptable failures.
-    name: Test FastAPI
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: set up python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Run tests
-        run: make test-fastapi
-
   test-plugin:
     name: Test Pydantic plugin
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.12'
 
       - name: Install dependencies
-        run: uv sync --python 3.12
+        run: uv sync
 
       - name: Install example plugin
         run: uv pip install ./tests/plugin
@@ -192,54 +179,30 @@ jobs:
           TEST_PLUGIN: 1
 
   test-mypy:
-    name: mypy ${{ matrix.mypy-version }} / ${{ matrix.python-version }}
+    name: Mypy typechecking tests
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # test the latest version on all supported Python versions and the rest on 3.12
-        mypy-version: ['1.10.1', '1.11.2']
-        python-version: ['3.12']
-        include:
-          - mypy-version: '1.12.0'
-            python-version: '3.8'
-          - mypy-version: '1.12.0'
-            python-version: '3.9'
-          - mypy-version: '1.12.0'
-            python-version: '3.10'
-          - mypy-version: '1.12.0'
-            python-version: '3.11'
-          - mypy-version: '1.12.0'
-            python-version: '3.12'
-          - mypy-version: '1.12.0'
-            python-version: '3.13'
-
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
-    - uses: astral-sh/setup-uv@v3
+    - uses: astral-sh/setup-uv@v7
       with:
-        enable-cache: true
+        python-version: '3.13'
 
     - name: Install dependencies
-      run: uv sync --python ${{ matrix.python-version }} --group typechecking --all-extras
-
-    - name: Install mypy
-      if: steps.cache.outputs.cache-hit != 'true'
-      run: uv pip install 'mypy==${{ matrix.mypy-version }}'
+      run: uv sync --group typechecking --all-extras
 
     - run: mkdir coverage
 
     - name: Run mypy tests
       run: uv run coverage run -m pytest tests/mypy --test-mypy
       env:
-        COVERAGE_FILE: coverage/.coverage.linux-py${{ matrix.python-version }}-mypy${{ matrix.mypy-version }}
-        CONTEXT: linux-py${{ matrix.python-version }}-mypy${{ matrix.mypy-version }}
+        COVERAGE_FILE: coverage/.coverage.linux-mypy
+        CONTEXT: linux-mypy
 
     - name: Store coverage files
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
-        name: coverage-${{ matrix.python-version }}-mypy${{ matrix.mypy-version }}
+        name: coverage-mypy
         path: coverage
         include-hidden-files: true
 
@@ -247,14 +210,14 @@ jobs:
     name: Typechecking integration tests
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
-    - uses: astral-sh/setup-uv@v3
+    - uses: astral-sh/setup-uv@v7
       with:
-        enable-cache: true
+        python-version: '3.12'
 
     - name: Install dependencies
-      run: uv sync --python 3.12 --group typechecking
+      run: uv sync --group typechecking
 
     - name: Run typechecking integration tests (Pyright)
       run: make test-typechecking-pyright
@@ -262,19 +225,22 @@ jobs:
     - name: Run typechecking integration tests (Mypy)
       run: make test-typechecking-mypy
 
+    - name: Run typechecking integration tests (Pyrefly)
+      run: make test-typechecking-pyrefly
+
   coverage-combine:
     needs: [test, test-mypy]
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
       - name: Get coverage files
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           merge-multiple: true
           pattern: coverage-*
@@ -288,14 +254,14 @@ jobs:
       - run: coverage html --show-contexts --title "pydantic coverage for ${{ github.sha }}"
 
       - name: Store coverage data
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-data
           path: .coverage
           include-hidden-files: true
 
       - name: Store coverage HTML
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-html
           path: htmlcov
@@ -309,10 +275,10 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download coverage data
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: coverage-data
 
@@ -323,7 +289,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Store coverage comment
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: steps.coverage-comment.outputs.COMMENT_FILE_WRITTEN == 'true'
         with:
           name: python-coverage-comment-action
@@ -335,16 +301,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
-    - uses: astral-sh/setup-uv@v3
+    - uses: astral-sh/setup-uv@v7
       with:
-        enable-cache: true
+        python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
-      run: uv sync --python ${{ matrix.python-version }}
+      run: uv sync
 
     - name: Install typing-extensions
       run: uv pip install 'typing-extensions @ git+https://github.com/python/typing_extensions.git'
@@ -365,7 +331,6 @@ jobs:
       - test
       - test-memray
       - test-mypy
-      - test-fastapi
       - test-plugin
 
     runs-on: ubuntu-latest
@@ -390,9 +355,9 @@ jobs:
       pydantic-version: ${{ steps.check-tag.outputs.VERSION }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
@@ -401,7 +366,7 @@ jobs:
 
       - name: Check version
         id: check-tag
-        uses: samuelcolvin/check-python-version@v4.1
+        uses: samuelcolvin/check-python-version@v5
         with:
           version_file_path: pydantic/version.py
 
@@ -418,7 +383,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Install dependencies

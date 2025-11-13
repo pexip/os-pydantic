@@ -1,12 +1,13 @@
 import dataclasses
+import platform
 import re
 import sys
 import typing
-from typing import Any, Optional, Tuple
+from typing import Any, Generic, Optional, TypeVar
 
 import pytest
 
-from pydantic import BaseModel, PydanticUserError, ValidationError
+from pydantic import BaseModel, Field, PydanticUserError, TypeAdapter, ValidationError
 
 
 def test_postponed_annotations(create_module):
@@ -57,37 +58,20 @@ def test_forward_ref_auto_update_no_model(create_module):
             b: 'Foo'
 
     assert module.Bar.__pydantic_complete__ is True
-    assert repr(module.Bar.model_fields['b']) == 'FieldInfo(annotation=Foo, required=True)'
+    assert module.Bar.model_fields['b']._complete
 
     # Bar should be complete and ready to use
     b = module.Bar(b={'a': {'b': {}}})
     assert b.model_dump() == {'b': {'a': {'b': {'a': None}}}}
 
-    # model_fields is complete on Foo
-    assert repr(module.Foo.model_fields['a']) == (
-        'FieldInfo(annotation=Union[Bar, NoneType], required=False, default=None)'
-    )
+    # model_fields is *not* complete on Foo
+    assert not module.Foo.model_fields['a']._complete
 
     assert module.Foo.__pydantic_complete__ is False
     # Foo gets auto-rebuilt during the first attempt at validation
     f = module.Foo(a={'b': {'a': {'b': {'a': None}}}})
     assert module.Foo.__pydantic_complete__ is True
     assert f.model_dump() == {'a': {'b': {'a': {'b': {'a': None}}}}}
-
-
-def test_forward_ref_one_of_fields_not_defined(create_module):
-    @create_module
-    def module():
-        from pydantic import BaseModel
-
-        class Foo(BaseModel):
-            foo: 'Foo'
-            bar: 'Bar'
-
-    assert {k: repr(v) for k, v in module.Foo.model_fields.items()} == {
-        'foo': 'FieldInfo(annotation=Foo, required=True)',
-        'bar': "FieldInfo(annotation=ForwardRef('Bar'), required=True)",
-    }
 
 
 def test_basic_forward_ref(create_module):
@@ -129,15 +113,13 @@ def test_self_forward_ref_module(create_module):
 def test_self_forward_ref_collection(create_module):
     @create_module
     def module():
-        from typing import Dict, List
-
         from pydantic import BaseModel
 
         class Foo(BaseModel):
             a: int = 123
             b: 'Foo' = None
-            c: 'List[Foo]' = []
-            d: 'Dict[str, Foo]' = {}
+            c: 'list[Foo]' = []
+            d: 'dict[str, Foo]' = {}
 
     assert module.Foo().model_dump() == {'a': 123, 'b': None, 'c': [], 'd': {}}
     assert module.Foo(b={'a': '321'}, c=[{'a': 234}], d={'bar': {'a': 345}}).model_dump() == {
@@ -164,8 +146,8 @@ def test_self_forward_ref_collection(create_module):
     assert repr(module.Foo.model_fields['b']) == 'FieldInfo(annotation=Foo, required=False, default=None)'
     if sys.version_info < (3, 10):
         return
-    assert repr(module.Foo.model_fields['c']) == ('FieldInfo(annotation=List[Foo], required=False, ' 'default=[])')
-    assert repr(module.Foo.model_fields['d']) == ('FieldInfo(annotation=Dict[str, Foo], required=False, default={})')
+    assert repr(module.Foo.model_fields['c']) == ('FieldInfo(annotation=list[Foo], required=False, default=[])')
+    assert repr(module.Foo.model_fields['d']) == ('FieldInfo(annotation=dict[str, Foo], required=False, default={})')
 
 
 def test_self_forward_ref_local(create_module):
@@ -234,14 +216,14 @@ def test_forward_ref_sub_types(create_module):
 def test_forward_ref_nested_sub_types(create_module):
     @create_module
     def module():
-        from typing import ForwardRef, Tuple, Union
+        from typing import ForwardRef, Union
 
         from pydantic import BaseModel
 
         class Leaf(BaseModel):
             a: str
 
-        TreeType = Union[Union[Tuple[ForwardRef('Node'), str], int], Leaf]
+        TreeType = Union[Union[tuple[ForwardRef('Node'), str], int], Leaf]
 
         class Node(BaseModel):
             value: int
@@ -264,13 +246,11 @@ def test_forward_ref_nested_sub_types(create_module):
 def test_self_reference_json_schema(create_module):
     @create_module
     def module():
-        from typing import List
-
         from pydantic import BaseModel
 
         class Account(BaseModel):
             name: str
-            subaccounts: List['Account'] = []
+            subaccounts: list['Account'] = []
 
     Account = module.Account
     assert Account.model_json_schema() == {
@@ -331,8 +311,6 @@ class Account(BaseModel):
 def test_circular_reference_json_schema(create_module):
     @create_module
     def module():
-        from typing import List
-
         from pydantic import BaseModel
 
         class Owner(BaseModel):
@@ -341,7 +319,7 @@ def test_circular_reference_json_schema(create_module):
         class Account(BaseModel):
             name: str
             owner: 'Owner'
-            subaccounts: List['Account'] = []
+            subaccounts: list['Account'] = []
 
     Account = module.Account
     assert Account.model_json_schema() == {
@@ -422,7 +400,7 @@ def test_forward_ref_with_field(create_module):
     @create_module
     def module():
         import re
-        from typing import ForwardRef, List
+        from typing import ForwardRef
 
         import pytest
 
@@ -431,7 +409,7 @@ def test_forward_ref_with_field(create_module):
         Foo = ForwardRef('Foo')
 
         class Foo(BaseModel):
-            c: List[Foo] = Field(gt=0)
+            c: list[Foo] = Field(gt=0)
 
         with pytest.raises(TypeError, match=re.escape("Unable to apply constraint 'gt' to supplied value []")):
             Foo(c=[Foo(c=[])])
@@ -490,7 +468,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from pydantic import BaseModel
-from typing_extensions import Literal
+from typing import Literal
 
 @dataclass
 class Base:
@@ -507,7 +485,7 @@ class What(BaseModel):
 
 def test_nested_forward_ref():
     class NestedTuple(BaseModel):
-        x: Tuple[int, Optional['NestedTuple']]
+        x: tuple[int, Optional['NestedTuple']]
 
     obj = NestedTuple.model_validate({'x': ('1', {'x': ('2', {'x': ('3', None)})})})
     assert obj.model_dump() == {'x': (1, {'x': (2, {'x': (3, None)})})}
@@ -516,9 +494,7 @@ def test_nested_forward_ref():
 def test_discriminated_union_forward_ref(create_module):
     @create_module
     def module():
-        from typing import Union
-
-        from typing_extensions import Literal
+        from typing import Literal, Union
 
         from pydantic import BaseModel, Field
 
@@ -576,8 +552,7 @@ def test_class_var_as_string(create_module):
         # language=Python
         """
 from __future__ import annotations
-from typing import ClassVar, ClassVar as CV
-from typing_extensions import Annotated
+from typing import Annotated, ClassVar, ClassVar as CV
 from pydantic import BaseModel
 
 class Model(BaseModel):
@@ -639,12 +614,6 @@ class Model(BaseModel):
     assert m.model_dump_json() == '{"foo_user":{"x":"user1"},"user":"User(user2)"}'
 
 
-skip_pep585 = pytest.mark.skipif(
-    sys.version_info < (3, 9), reason='PEP585 generics only supported for python 3.9 and above'
-)
-
-
-@skip_pep585
 def test_pep585_self_referencing_generics(create_module):
     module = create_module(
         # language=Python
@@ -668,7 +637,6 @@ class SelfReferencing(BaseModel):
     assert obj.names == [SelfReferencing(names=[])]
 
 
-@skip_pep585
 def test_pep585_recursive_generics(create_module):
     @create_module
     def module():
@@ -753,6 +721,8 @@ class Foo(BaseModel):
 
 class Bar(BaseModel, Generic[T]):
     foo: Foo
+
+Foo.model_rebuild()
     """
         )
     finally:
@@ -783,6 +753,8 @@ class Foo(BaseModel):
 
 class Bar(BaseModel, Generic[T]):
     foo: Foo
+
+Foo.model_rebuild()
 """
     )
 
@@ -863,8 +835,9 @@ def test_nested_more_annotation(create_module):
 def test_nested_annotation_priority(create_module):
     @create_module
     def module():
+        from typing import Annotated
+
         from annotated_types import Gt
-        from typing_extensions import Annotated
 
         from pydantic import BaseModel
 
@@ -1022,11 +995,11 @@ def test_undefined_types_warning_raised_by_usage(create_module):
 
 
 def test_rebuild_recursive_schema():
-    from typing import ForwardRef, List
+    from typing import ForwardRef
 
     class Expressions_(BaseModel):
         model_config = dict(undefined_types_warning=False)
-        items: List["types['Expression']"]
+        items: list["types['Expression']"]
 
     class Expression_(BaseModel):
         model_config = dict(undefined_types_warning=False)
@@ -1039,7 +1012,7 @@ def test_rebuild_recursive_schema():
 
     class allOfExpressions_(BaseModel):
         model_config = dict(undefined_types_warning=False)
-        items: List["types['Expression']"]
+        items: list["types['Expression']"]
 
     types_namespace = {
         'types': {
@@ -1060,12 +1033,10 @@ def test_forward_ref_in_generic(create_module: Any) -> None:
 
     @create_module
     def module():
-        import typing as tp
-
         from pydantic import BaseModel
 
         class Foo(BaseModel):
-            x: tp.Dict['tp.Type[Bar]', tp.Type['Bar']]
+            x: dict['type[Bar]', type['Bar']]
 
         class Bar(BaseModel):
             pass
@@ -1081,12 +1052,10 @@ def test_forward_ref_in_generic_separate_modules(create_module: Any) -> None:
 
     @create_module
     def module_1():
-        import typing as tp
-
         from pydantic import BaseModel
 
         class Foo(BaseModel):
-            x: tp.Dict['tp.Type[Bar]', tp.Type['Bar']]
+            x: dict['type[Bar]', type['Bar']]
 
     @create_module
     def module_2():
@@ -1118,14 +1087,12 @@ def test_pydantic_extra_forward_ref_separate_module(create_module: Any) -> None:
 
     @create_module
     def module_1():
-        from typing import Dict
-
         from pydantic import BaseModel, ConfigDict
 
         class Bar(BaseModel):
             model_config = ConfigDict(defer_build=True, extra='allow')
 
-            __pydantic_extra__: 'Dict[str, int]'
+            __pydantic_extra__: 'dict[str, int]'
 
     module_2 = create_module(
         f"""
@@ -1218,6 +1185,60 @@ class Foo(BaseModel):
     )
 
     module_2.Foo(bar={'f': 1})
+
+
+def test_preserve_evaluated_attribute_of_parent_fields(create_module):
+    """https://github.com/pydantic/pydantic/issues/11663"""
+
+    @create_module
+    def module_1():
+        from pydantic import BaseModel
+
+        class Child(BaseModel):
+            parent: 'Optional[Parent]' = None
+
+        class Parent(BaseModel):
+            child: list[Child] = []
+
+    module_1 = create_module(
+        f"""
+from {module_1.__name__} import Child, Parent
+
+from typing import Optional
+
+Child.model_rebuild()
+
+class SubChild(Child):
+    pass
+
+assert SubChild.__pydantic_fields_complete__
+SubChild()
+        """
+    )
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason=(
+        'Forward refs inside PEP 585 generics are not evaluated (see https://github.com/python/cpython/pull/30900).'
+    ),
+)
+def test_forward_ref_in_class_parameter() -> None:
+    """https://github.com/pydantic/pydantic/issues/11854, https://github.com/pydantic/pydantic/issues/11920"""
+    T = TypeVar('T')
+
+    class Model(BaseModel, Generic[T]):
+        f: T = Field(json_schema_extra={'extra': 'value'})
+
+    M = Model[list['Undefined']]
+
+    assert not M.__pydantic_fields_complete__
+
+    M.model_rebuild(_types_namespace={'Undefined': int})
+
+    assert M.__pydantic_fields_complete__
+    assert M.model_fields['f'].annotation == list[int]
+    assert M.model_fields['f'].json_schema_extra == {'extra': 'value'}
 
 
 def test_uses_the_local_namespace_when_generating_schema():
@@ -1314,7 +1335,7 @@ def test_uses_the_correct_globals_to_resolve_forward_refs_on_serializers(create_
     # we use the globals of the underlying func to resolve the return type.
     @create_module
     def module_1():
-        from typing_extensions import Annotated
+        from typing import Annotated
 
         from pydantic import (
             BaseModel,
@@ -1341,6 +1362,58 @@ def test_uses_the_correct_globals_to_resolve_forward_refs_on_serializers(create_
     Sub.model_rebuild()
 
 
+def test_type_adapter_uses_function_module_namespace_and_parent_namespace(create_module):
+    """https://github.com/pydantic/pydantic/issues/12165"""
+
+    @create_module
+    def module_1():
+        Int = int
+
+        def func(a: 'Int', b: 'MyInt'):
+            return (a, b)
+
+    module_2 = create_module(
+        f"""
+from {module_1.__name__} import func
+
+from pydantic import TypeAdapter
+
+MyInt = int
+
+ta = TypeAdapter(func)
+        """
+    )
+
+    assert module_2.ta.validate_python({'a': '1', 'b': '2'}) == (1, 2)
+
+
+@pytest.mark.skipif(sys.version_info < (3, 12), reason='Test related to PEP 695 syntax.')
+def test_type_adapter_uses_function_type_params_namespace(create_module):
+    """Relevant to https://github.com/pydantic/pydantic/issues/12165"""
+    module_1 = create_module(
+        """
+Int = int
+
+def func[T](a: 'Int', b: 'T'):
+    return (a, b)
+        """
+    )
+
+    module_2 = create_module(
+        f"""
+from {module_1.__name__} import func
+
+from pydantic import TypeAdapter
+
+MyInt = int
+
+ta = TypeAdapter(func)
+        """
+    )
+
+    assert module_2.ta.validate_python({'a': '1', 'b': True}) == (1, True)
+
+
 @pytest.mark.xfail(reason='parent namespace is used for every type in `NsResolver`, for backwards compatibility.')
 def test_do_not_use_parent_ns_when_outside_the_function(create_module):
     @create_module
@@ -1365,3 +1438,129 @@ def test_do_not_use_parent_ns_when_outside_the_function(create_module):
         ReturnedModel = inner()  # noqa: F841
 
     assert module_1.ReturnedModel.__pydantic_complete__ is False
+
+
+# Tests related to forward annotations evaluation coupled with PEP 695 generic syntax:
+
+
+@pytest.mark.skipif(sys.version_info < (3, 12), reason='Test related to PEP 695 syntax.')
+def test_pep695_generics_syntax_base_model(create_module) -> None:
+    mod_1 = create_module(
+        """
+from pydantic import BaseModel
+
+class Model[T](BaseModel):
+    t: 'T'
+        """
+    )
+
+    assert mod_1.Model[int].model_fields['t'].annotation is int
+
+
+@pytest.mark.skipif(sys.version_info < (3, 12), reason='Test related to PEP 695 syntax.')
+def test_pep695_generics_syntax_arbitrary_class(create_module) -> None:
+    mod_1 = create_module(
+        """
+from typing import TypedDict
+
+class TD[T](TypedDict):
+    t: 'T'
+        """
+    )
+
+    with pytest.raises(ValidationError):
+        TypeAdapter(mod_1.TD[str]).validate_python({'t': 1})
+
+
+@pytest.mark.skipif(sys.version_info < (3, 12), reason='Test related to PEP 695 syntax.')
+def test_pep695_generics_class_locals_take_priority(create_module) -> None:
+    # As per https://github.com/python/cpython/pull/120272
+    mod_1 = create_module(
+        """
+from pydantic import BaseModel
+
+class Model[T](BaseModel):
+    type T = int
+    t: 'T'
+        """
+    )
+
+    # 'T' should resolve to the `TypeAliasType` instance, not the type variable:
+    assert mod_1.Model[int].model_fields['t'].annotation.__value__ is int
+
+
+@pytest.mark.skipif(sys.version_info < (3, 12), reason='Test related to PEP 695 syntax.')
+def test_annotation_scope_skipped(create_module) -> None:
+    # Documentation:
+    # https://docs.python.org/3/reference/executionmodel.html#annotation-scopes
+    # https://docs.python.org/3/reference/compound_stmts.html#generic-classes
+    # Under the hood, `parent_frame_namespace` skips the annotation scope so that
+    # we still properly fetch the namespace of `func` containing `Alias`.
+    mod_1 = create_module(
+        """
+from pydantic import BaseModel
+
+def func() -> None:
+    Alias = int
+
+    class Model[T](BaseModel):
+        a: 'Alias'
+
+    return Model
+
+Model = func()
+        """
+    )
+
+    assert mod_1.Model.model_fields['a'].annotation is int
+
+
+@pytest.mark.skipif(
+    platform.python_implementation() == 'PyPy' and sys.version_info < (3, 11),
+    reason='Flaky on PyPy',
+)
+def test_implicit_type_alias_recursive_error_message() -> None:
+    Json = list['Json']
+
+    with pytest.raises(RecursionError, match='.*If you made use of an implicit recursive type alias.*'):
+        TypeAdapter(Json)
+
+
+def test_none_converted_as_none_type() -> None:
+    """https://github.com/pydantic/pydantic/issues/12368.
+
+    In Python 3.14, `None` was not converted as `type(None)` by `typing._eval_type()`.
+    """
+
+    class Model(BaseModel):
+        a: 'None' = None
+
+    assert Model.model_fields['a'].annotation is type(None)
+    assert Model(a=None).a is None
+
+
+def test_typeddict_parent_from_other_module(create_module) -> None:
+    """https://github.com/pydantic/pydantic/issues/12421."""
+
+    @create_module
+    def mod_1():
+        from typing_extensions import TypedDict
+
+        Int = int
+
+        class Base(TypedDict):
+            f: 'Int'
+
+    mod_2 = create_module(
+        f"""
+from {mod_1.__name__} import Base
+
+
+class Sub(Base):
+    pass
+        """
+    )
+
+    ta = TypeAdapter(mod_2.Sub)
+
+    assert ta.validate_python({'f': '1'}) == {'f': 1}

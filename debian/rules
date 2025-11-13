@@ -4,8 +4,6 @@
 # Uncomment this to turn on verbose mode.
 # export DH_VERBOSE=1
 
-export PYBUILD_TEST_ARGS=-Wignore
-
 # The launchpad build environment sets V=1 in the
 # environment by default, which conflicts with
 # this package's tests (LP: #1981341).

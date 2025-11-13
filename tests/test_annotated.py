@@ -1,14 +1,14 @@
 import datetime as dt
 import sys
+from collections.abc import Iterator
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any, Callable, Generic, Iterator, List, Optional, Set, TypeVar
+from typing import Annotated, Any, Callable, Generic, Optional, TypeVar
 
 import pytest
 import pytz
 from annotated_types import BaseMetadata, GroupedMetadata, Gt, Lt, Not, Predicate
 from pydantic_core import CoreSchema, PydanticUndefined, core_schema
-from typing_extensions import Annotated
 
 from pydantic import (
     BaseModel,
@@ -26,6 +26,12 @@ from pydantic.functional_validators import AfterValidator
 NO_VALUE = object()
 
 
+@pytest.mark.thread_unsafe(
+    reason=(
+        'The `FieldInfo.from_annotated_attribute()` implementation directly mutates the assigned value, '
+        'if it is a `Field()`. https://github.com/pydantic/pydantic/issues/11122 tracks this issue'
+    )
+)
 @pytest.mark.parametrize(
     'hint_fn,value,expected_repr',
     [
@@ -113,6 +119,7 @@ def test_annotated_allows_unknown(metadata):
     assert metadata in M.__annotations__['x'].__metadata__, 'Annotated type is recorded'
 
 
+@pytest.mark.thread_unsafe(reason='`pytest.raises()` is thread unsafe')
 @pytest.mark.parametrize(
     ['hint_fn', 'value', 'empty_init_ctx'],
     [
@@ -168,7 +175,7 @@ def test_annotated_alias() -> None:
     StrAlias = Annotated[str, Field(max_length=3)]
     IntAlias = Annotated[int, Field(default_factory=lambda: 2)]
 
-    Nested = Annotated[List[StrAlias], Field(description='foo')]
+    Nested = Annotated[list[StrAlias], Field(description='foo')]
 
     class MyModel(BaseModel):
         a: StrAlias = 'abc'
@@ -183,13 +190,13 @@ def test_annotated_alias() -> None:
         'b': 'FieldInfo(annotation=str, required=True, metadata=[MaxLen(max_length=3)])',
         'c': 'FieldInfo(annotation=int, required=False, default_factory=<lambda>)',
         'd': 'FieldInfo(annotation=int, required=False, default_factory=<lambda>)',
-        'e': "FieldInfo(annotation=List[Annotated[str, FieldInfo(annotation=NoneType, required=True, metadata=[MaxLen(max_length=3)])]], required=True, description='foo')",
+        'e': "FieldInfo(annotation=list[Annotated[str, FieldInfo(annotation=NoneType, required=True, metadata=[MaxLen(max_length=3)])]], required=True, description='foo')",
     }
     assert MyModel(b='def', e=['xyz']).model_dump() == dict(a='abc', b='def', c=2, d=2, e=['xyz'])
 
 
 def test_modify_get_schema_annotated() -> None:
-    calls: List[str] = []
+    calls: list[str] = []
 
     class CustomType:
         @classmethod
@@ -244,20 +251,8 @@ def test_modify_get_schema_annotated() -> None:
     calls.clear()
 
 
-def test_annotated_alias_at_low_level() -> None:
-    with pytest.warns(
-        UserWarning,
-        match=r'`alias` specification on field "low_level_alias_field" must be set on outermost annotation to take effect.',
-    ):
-
-        class Model(BaseModel):
-            low_level_alias_field: Optional[Annotated[int, Field(alias='field_alias')]] = None
-
-    assert Model(field_alias=1).low_level_alias_field is None
-
-
 def test_get_pydantic_core_schema_source_type() -> None:
-    types: Set[Any] = set()
+    types: set[Any] = set()
 
     class PydanticMarker:
         def __get_pydantic_core_schema__(self, source: Any, handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:
@@ -403,7 +398,7 @@ def test_predicate_error_python() -> None:
         {
             'type': 'predicate_failed',
             'loc': (),
-            'msg': 'Predicate test_predicate_error_python.<locals>.<lambda> failed',
+            'msg': "Predicate 'test_predicate_error_python.<locals>.<lambda>' failed",
             'input': -1,
         }
     ]
@@ -420,7 +415,7 @@ def test_not_operation_error_python() -> None:
         {
             'type': 'not_operation_failed',
             'loc': (),
-            'msg': 'Not of test_not_operation_error_python.<locals>.<lambda> failed',
+            'msg': "Not of 'test_not_operation_error_python.<locals>.<lambda>' failed",
             'input': 6,
         }
     ]
@@ -498,28 +493,6 @@ def test_min_length_field_info_not_lost():
         }
     ]
 
-    # Ensure that the inner annotation does not override the outer, even for metadata:
-    class AnnotatedFieldModel2(BaseModel):
-        foo: 'Annotated[String, Field(min_length=3)]' = Field(description='hello', min_length=2)
-
-    AnnotatedFieldModel2(foo='00')
-
-    class AnnotatedFieldModel4(BaseModel):
-        foo: 'Annotated[String, Field(min_length=3)]' = Field(description='hello', min_length=4)
-
-    with pytest.raises(ValidationError) as exc_info:
-        AnnotatedFieldModel4(foo='00')
-
-    assert exc_info.value.errors(include_url=False) == [
-        {
-            'loc': ('foo',),
-            'input': '00',
-            'ctx': {'min_length': 4},
-            'msg': 'String should have at least 4 characters',
-            'type': 'string_too_short',
-        }
-    ]
-
 
 def test_tzinfo_validator_example_pattern() -> None:
     """Test that tzinfo custom validator pattern works as explained in the examples/validators docs."""
@@ -545,9 +518,9 @@ def test_tzinfo_validator_example_pattern() -> None:
                     f'Invalid tz_constraint: {self.tz_constraint}', code='unevaluable-type-annotation'
                 )
             result = handler(value)  # (2)!
-            assert self.tz_constraint == str(
-                result.tzinfo
-            ), f'Invalid tzinfo: {str(result.tzinfo)}, expected: {self.tz_constraint}'
+            assert self.tz_constraint == str(result.tzinfo), (
+                f'Invalid tzinfo: {str(result.tzinfo)}, expected: {self.tz_constraint}'
+            )
 
             return result
 
@@ -635,7 +608,7 @@ def test_utcoffset_validator_example_pattern() -> None:
 
 
 def test_incompatible_metadata_error() -> None:
-    ta = TypeAdapter(Annotated[List[int], Field(pattern='abc')])
+    ta = TypeAdapter(Annotated[list[int], Field(pattern='abc')])
     with pytest.raises(TypeError, match="Unable to apply constraint 'pattern'"):
         ta.validate_python([1, 2, 3])
 

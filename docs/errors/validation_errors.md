@@ -93,10 +93,12 @@ except ValidationError as exc:
     #> 'bool_type'
 ```
 
+This error is also raised for strict fields when the input value is not an instance of `bool`.
+
 ## `bytes_invalid_encoding`
 
 This error is raised when a `bytes` value is invalid under the configured encoding.
-In the following example, `b'a'` is invalid hex (odd number of digits).
+In the following example, `'a'` is invalid hex (odd number of digits).
 
 ```python
 from pydantic import BaseModel, ValidationError
@@ -108,13 +110,11 @@ class Model(BaseModel):
 
 
 try:
-    Model(x=b'a')
+    Model(x='a')
 except ValidationError as exc:
     print(repr(exc.errors()[0]['type']))
     #> 'bytes_invalid_encoding'
 ```
-
-This error is also raised for strict fields when the input value is not an instance of `bool`.
 
 ## `bytes_too_long`
 
@@ -429,9 +429,6 @@ This error is also raised for strict fields when the input value is not an insta
 
 ## `datetime_from_date_parsing`
 
-!!! note
-    Support for this error, along with support for parsing datetimes from `yyyy-MM-DD` dates will be added in `v2.6.0`
-
 This error is raised when the input value is a string that cannot be parsed for a `datetime` field:
 
 ```python
@@ -674,7 +671,34 @@ except ValidationError as exc:
     #> 'decimal_whole_digits'
 ```
 
-This error is also raised for strict fields when the input value is not an instance of `Decimal`.
+## `default_factory_not_called`
+
+This error is raised when a [default factory taking validated data](../concepts/fields.md#default-factory-validated-data)
+can't be called, because validation failed on previous fields:
+
+```python
+from pydantic import BaseModel, Field, ValidationError
+
+
+class Model(BaseModel):
+    a: int = Field(gt=10)
+    b: int = Field(default_factory=lambda data: data['a'])
+
+
+try:
+    Model(a=1)
+except ValidationError as exc:
+    print(exc)
+    """
+    2 validation errors for Model
+    a
+      Input should be greater than 10 [type=greater_than, input_value=1, input_type=int]
+    b
+      The default factory uses validated data, but at least one validation error occurred [type=default_factory_not_called]
+    """
+    print(repr(exc.errors()[1]['type']))
+    #> 'default_factory_not_called'
+```
 
 ## `dict_type`
 
@@ -830,7 +854,7 @@ except ValidationError as exc:
 
 ## `frozen_instance`
 
-This error is raised when `model_config['frozen] == True` and you attempt to delete or assign a new value to
+This error is raised when `frozen` is set in the [configuration](../concepts/config.md) and you attempt to delete or assign a new value to
 any of the fields:
 
 ```python
@@ -1087,8 +1111,6 @@ except ValidationError as exc:
 This error is raised when the input value is not a subclass of the expected type:
 
 ```python
-from typing import Type
-
 from pydantic import BaseModel, ValidationError
 
 
@@ -1097,7 +1119,7 @@ class Nested:
 
 
 class Model(BaseModel):
-    y: Type[Nested]
+    y: type[Nested]
 
 
 try:
@@ -1112,13 +1134,13 @@ except ValidationError as exc:
 This error is raised when the input value is not valid as an `Iterable`:
 
 ```python
-from typing import Iterable
+from collections.abc import Iterable
 
 from pydantic import BaseModel, ValidationError
 
 
 class Model(BaseModel):
-    y: Iterable
+    y: Iterable[str]
 
 
 try:
@@ -1133,8 +1155,6 @@ except ValidationError as exc:
 This error is raised when an error occurs during iteration:
 
 ```python
-from typing import List
-
 from pydantic import BaseModel, ValidationError
 
 
@@ -1144,7 +1164,7 @@ def gen():
 
 
 class Model(BaseModel):
-    x: List[int]
+    x: list[int]
 
 
 try:
@@ -1235,13 +1255,11 @@ except ValidationError as exc:
 This error is raised when the input value's type is not valid for a `list` field:
 
 ```python
-from typing import List
-
 from pydantic import BaseModel, ValidationError
 
 
 class Model(BaseModel):
-    x: List[int]
+    x: list[int]
 
 
 try:
@@ -1281,7 +1299,6 @@ This error is raised when a problem occurs during validation due to a failure in
 
 ```python
 from collections.abc import Mapping
-from typing import Dict
 
 from pydantic import BaseModel, ValidationError
 
@@ -1301,7 +1318,7 @@ class BadMapping(Mapping):
 
 
 class Model(BaseModel):
-    x: Dict[str, str]
+    x: dict[str, str]
 
 
 try:
@@ -1390,6 +1407,27 @@ try:
 except ValidationError as exc:
     print(repr(exc.errors()[0]['type']))
     #> 'missing_positional_only_argument'
+```
+
+## `missing_sentinel_error`
+
+This error is raised when the experimental `MISSING` sentinel is the only value allowed, and wasn't
+provided during validation:
+
+```python
+from pydantic import BaseModel, ValidationError
+from pydantic.experimental.missing_sentinel import MISSING
+
+
+class Model(BaseModel):
+    f: MISSING
+
+
+try:
+    Model(f=1)
+except ValidationError as exc:
+    print(repr(exc.errors()[0]['type']))
+    #> 'missing_sentinel_error'
 ```
 
 ## `model_attributes_type`
@@ -1503,13 +1541,12 @@ For example, we cannot check `isinstance` or `issubclass` from JSON:
 
 ```python
 import json
-from typing import Type
 
 from pydantic import BaseModel, ValidationError
 
 
 class Model(BaseModel):
-    bm: Type[BaseModel]
+    bm: type[BaseModel]
 
 
 try:
@@ -1583,13 +1620,11 @@ except ValidationError as exc:
 This error is raised when a cyclic reference is detected:
 
 ```python
-from typing import List
-
 from pydantic import BaseModel, ValidationError
 
 
 class Model(BaseModel):
-    x: List['Model']
+    x: list['Model']
 
 
 d = {'x': []}
@@ -1601,18 +1636,41 @@ except ValidationError as exc:
     #> 'recursion_loop'
 ```
 
+## `set_item_not_hashable`
+
+This error is raised when an unhashable value is validated against a [`set`][] or a [`frozenset`][]:
+
+```python
+from pydantic import BaseModel, ValidationError
+
+
+class Model(BaseModel):
+    x: set[object]
+
+
+class Unhashable:
+    __hash__ = None
+
+
+try:
+    Model(x=[{'a': 'b'}, Unhashable()])
+except ValidationError as exc:
+    print(repr(exc.errors()[0]['type']))
+    #> 'set_item_not_hashable'
+    print(repr(exc.errors()[1]['type']))
+    #> 'set_item_not_hashable'
+```
+
 ## `set_type`
 
 This error is raised when the value type is not valid for a `set` field:
 
 ```python
-from typing import Set
-
 from pydantic import BaseModel, ValidationError
 
 
 class Model(BaseModel):
-    x: Set[int]
+    x: set[int]
 
 
 try:
@@ -1881,13 +1939,11 @@ except ValidationError as exc:
 This error is raised when the input value's length is greater than the field's `max_length` constraint:
 
 ```python
-from typing import List
-
 from pydantic import BaseModel, Field, ValidationError
 
 
 class Model(BaseModel):
-    x: List[int] = Field(max_length=3)
+    x: list[int] = Field(max_length=3)
 
 
 try:
@@ -1902,13 +1958,11 @@ except ValidationError as exc:
 This error is raised when the value length is less than the field's `min_length` constraint:
 
 ```python
-from typing import List
-
 from pydantic import BaseModel, Field, ValidationError
 
 
 class Model(BaseModel):
-    x: List[int] = Field(min_length=3)
+    x: list[int] = Field(min_length=3)
 
 
 try:
@@ -1923,13 +1977,11 @@ except ValidationError as exc:
 This error is raised when the input value's type is not valid for a `tuple` field:
 
 ```python
-from typing import Tuple
-
 from pydantic import BaseModel, ValidationError
 
 
 class Model(BaseModel):
-    x: Tuple[int]
+    x: tuple[int]
 
 
 try:
