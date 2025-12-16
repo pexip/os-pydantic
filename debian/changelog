@@ -1,3 +1,16 @@
+pydantic (2.12.5-2) unstable; urgency=medium
+
+  * Remove `xfail` marker on a PEP 649 related test (closes: #1123166).
+
+ -- Colin Watson <cjwatson@debian.org>  Tue, 16 Dec 2025 23:54:32 +0000
+
+pydantic (2.12.5-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Drop "Rules-Requires-Root: no", default as of dpkg-dev 1.22.13.
+
+ -- Colin Watson <cjwatson@debian.org>  Wed, 26 Nov 2025 16:08:04 +0000
+
 pydantic (2.12.4-1) unstable; urgency=medium
 
   * New upstream release.
