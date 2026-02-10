@@ -1,2 +1,3 @@
 pytest_examples_not_yet_packaged.patch
+pep-649-remove-xfail.patch
 pexip-pytest-run-parallel.patch

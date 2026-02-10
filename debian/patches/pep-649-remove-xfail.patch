@@ -1,0 +1,28 @@
+From: Viicos <65306057+Viicos@users.noreply.github.com>
+Date: Wed, 3 Dec 2025 21:31:50 +0100
+Subject: Remove `xfail` marker on a PEP 649 related test
+
+Origin: upstream, https://github.com/pydantic/pydantic/pull/12609
+Bug-Debian: https://bugs.debian.org/1123166
+Last-Update: 2025-12-16
+---
+ tests/test_deferred_annotations.py | 6 ------
+ 1 file changed, 6 deletions(-)
+
+diff --git a/tests/test_deferred_annotations.py b/tests/test_deferred_annotations.py
+index c6408d1..a7a68ec 100644
+--- a/tests/test_deferred_annotations.py
++++ b/tests/test_deferred_annotations.py
+@@ -36,12 +36,6 @@ def test_deferred_annotations_model() -> None:
+     assert inst.b == 'test'
+ 
+ 
+-@pytest.mark.xfail(
+-    reason=(
+-        'When rebuilding model fields, we individually re-evaluate all fields (using `_eval_type()`) '
+-        "and as such we don't benefit from PEP 649's capabilities."
+-    ),
+-)
+ def test_deferred_annotations_nested_model() -> None:
+     def outer():
+         def inner():
