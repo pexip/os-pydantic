@@ -1,3 +1,9 @@
+pydantic (2.12.5-2+pexip25u1) pexip-trixie; urgency=medium
+
+  * New upstream release
+
+ -- Huw Jones <huw@pexip.com>  Tue, 10 Feb 2026 16:00:58 +0000
+
 pydantic (2.12.5-2) unstable; urgency=medium
 
   * Remove `xfail` marker on a PEP 649 related test (closes: #1123166).
