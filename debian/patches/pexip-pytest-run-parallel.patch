@@ -1,3 +1,5 @@
+Remove dependency on pytest-parallel
+
 --- a/tests/test_version.py
 +++ b/tests/test_version.py
 @@ -40,7 +40,7 @@
